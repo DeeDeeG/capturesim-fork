@@ -34,13 +34,13 @@ class Disp (enum.Enum):
 
 @dataclass
 class GameFrame:
-    present_frame: int
-    present_t_ms: float
-    capture_t_ms: Optional[float] = None  # Is this useful?
-    composite_t_ms: Optional[float] = None
-    composite_frame: Optional[int] = None
+    present_frame: int # The game/input frame number, starting from frame 0 and incrementing by 1 per subsequent row (per subsequent frame) down the capture .csv file.
+    present_t_ms: float # Loosely speaking: the total amount of game time elapsed during frames in the capture file, starting from the first through to this frame, inclusive, in ms. Should be larger for each successive frame. Technically speaking: The sum of msBetweenPresents columns for each frame in the PresentMon capture .csv file processed so far, starting from the first frame through to this one, inclusive.
+    capture_t_ms: Optional[float] = None # Is this useful? # The timestamp of the simulated moment this frame was "captured" in the simulated game capture loop.
+    composite_t_ms: Optional[float] = None # Timestamp of when the simulated OBS render loop "composited" this frame's visuals out to the hypothetical OBS final output (e.g. stream or recording, for a real-world analogy).
+    composite_frame: Optional[int] = None # This frame's position in the list of composited frames, if this one eventually got composited. Set during the simulated render loop, not ahead of time.
 
-    disposition: Disp = Disp.UNKNOWN
+    disposition: Disp = Disp.UNKNOWN  # A sort of "status" of how this frame is being handled so far. Will be updated throughout different stages of the simulation.
 
 
 class FrameStream:
