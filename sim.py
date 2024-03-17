@@ -266,19 +266,21 @@ def main(argv: List[str]) -> int:
     print(f"Captured frames: {len(captured_framelist)} ({len(captured_framelist) - len(obs.composited_framelist)} unused)")
     print(f"Composited/output frames: {len(obs.composited_framelist)}")
 
+    g_avg = statistics.mean(gaplist_frames)
     g_med = statistics.median(gaplist_frames)
     g_min = min(gaplist_frames)
     g_max = max(gaplist_frames)
     g_stddev = statistics.stdev(gaplist_frames)
     print(
-        f"\nFrame number gaps: {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+        f"\nFrame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
 
+    g_avg = statistics.mean(gaplist_times)
     g_med = statistics.median(gaplist_times)
     g_min = min(gaplist_times)
     g_max = max(gaplist_times)
     g_stddev = statistics.stdev(gaplist_times)
     print(
-        f"Frame time gaps: {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+        f"Frame time gaps: {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
     return 0
 
