@@ -13,6 +13,7 @@ from typing import Generator, List, Optional, Tuple, Union
 from tdvutil.argparse import CheckFile
 from xopen import xopen
 
+### v THESE GLOBAL VARS NOT USED OTHER THAN OBS_FPS?
 TESTFILE = "pmcap-Heaven.exe-uncapped-240117-083918.csv"
 OBS_FPS = 60.0
 OBS_FRAMETIME_MS = 1000.0 / OBS_FPS
@@ -23,6 +24,7 @@ last_capture_ms = 0.0
 last_render_ms = 0.0
 last_capture_frame = -1
 last_render_frame = -1
+### ^ THESE GLOBAL VARS NOT USED OTHER THAN OBS_FPS?
 
 class Disp (enum.Enum):
     UNKNOWN = enum.auto()
@@ -35,9 +37,12 @@ class Disp (enum.Enum):
 @dataclass
 class GameFrame:
     present_frame: int # The game/input frame number, starting from frame 0 and incrementing by 1 per subsequent row (per subsequent frame) down the capture .csv file.
+    front_edge_timestamp_s: float # Timestamp of the "front edge" of this frame (beginning/moment when this frame's present call was initially called). Won't start from exactly 0s, especially if PresentMon was run with a delayed capture start on the CLI. A start time offset may need to be calculated and used with these timestamps for that reason, so that the first frame happens at roughly 0s, each subsequent frame happens one additional frametime later than 0s each, etc... in order to calculate stats properly from this. Otherwise the first frame may appear to be multiple seconds long.
+    back_edge_timestamp_s: float # Is this computed correctly/accurately? # Timestamp of the "back edge" (end/moment of return) of this frame's present call.
     present_t_ms: float # Loosely speaking: the total amount of game time elapsed during frames in the capture file, starting from the first through to this frame, inclusive, in ms. Should be larger for each successive frame. Technically speaking: The sum of msBetweenPresents columns for each frame in the PresentMon capture .csv file processed so far, starting from the first frame through to this one, inclusive.
     capture_t_ms: Optional[float] = None # Is this useful? # The timestamp of the simulated moment this frame was "captured" in the simulated game capture loop.
     composite_t_ms: Optional[float] = None # Timestamp of when the simulated OBS render loop "composited" this frame's visuals out to the hypothetical OBS final output (e.g. stream or recording, for a real-world analogy).
+    capture_frame: Optional[int] = None # This frame's position in the list of captured frames, if this one eventually got captured. Set during the simulated capture loop, not ahead of time.
     composite_frame: Optional[int] = None # This frame's position in the list of composited frames, if this one eventually got composited. Set during the simulated render loop, not ahead of time.
 
     disposition: Disp = Disp.UNKNOWN  # A sort of "status" of how this frame is being handled so far. Will be updated throughout different stages of the simulation.
@@ -61,8 +66,12 @@ class FrameStream:
 
         for rownum, row in enumerate(self.reader):
             self.gametime_ms += float(row['msBetweenPresents'])
+            self.front_edge_timestamp_s = float(row['TimeInSeconds'])
+            self.back_edge_timestamp_s = self.front_edge_timestamp_s + (float(row['msInPresentAPI']) / 1000)
             yield GameFrame(
                 present_frame=rownum,
+                front_edge_timestamp_s=self.front_edge_timestamp_s,
+                back_edge_timestamp_s=self.back_edge_timestamp_s,
                 present_t_ms=self.gametime_ms,
                 disposition=Disp.UNKNOWN,
             )
@@ -71,6 +80,7 @@ class FrameStream:
 # FIXME: Right now this just modifies frames in-place where needed, rather
 # than returning an updated one. This may or may not be the right interface
 class GameCapture:
+    last_capture_framenum: int = -1
     last_capture_frame: int = -1
     last_capture_ms: float = 0.0  # last frame captured
     game_time_ms: float = 0.0  # current game timestamp (last frame seen)
@@ -91,6 +101,8 @@ class GameCapture:
         self.last_capture_frame = frame.present_frame
         frame.disposition = Disp.CAPTURED
         frame.capture_t_ms = frame.present_t_ms
+        frame.capture_frame = self.last_capture_framenum + 1
+        self.last_capture_framenum += 1
 
         # set the last capture time so we know when to capture next
         #
@@ -112,6 +124,7 @@ class OBS:
     last_composite_t_ms: float = 0.0
     last_capture_frame: Optional[GameFrame] = None
     composited_framelist: List[GameFrame] = []
+    unique_composited_framelist: List[GameFrame] = []
 
     def __init__(self, fps: float) -> None:
         self.composite_interval_ms = 1000.0 / fps
@@ -149,6 +162,8 @@ class OBS:
             frame.disposition = Disp.COMPOSITED
 
         self.composited_framelist.append(fakeframe)
+        if fakeframe.disposition != Disp.COMPOSITED_DUP:
+            self.unique_composited_framelist.append(fakeframe)
         self.last_capture_frame = frame
 
         # move ourself one composite frame forward
@@ -242,45 +257,151 @@ def main(argv: List[str]) -> int:
                 dispstr = frame.disposition.name
             print(f"pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {dispstr}")
 
+    presentmon_capture_beginning_offset_s = float(round(presented_framelist[0].back_edge_timestamp_s) * 1000)
+
+    prev_front_edge_present_time = 0.0
+    prev_back_edge_present_time = presentmon_capture_beginning_offset_s
+    gaplist_present_front_edge_times = []
+    gaplist_present_back_edge_times = []
+    for frame in presented_framelist:
+        front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
+        prev_front_edge_present_time = frame.present_t_ms
+
+        back_edge_time_gap = (frame.back_edge_timestamp_s * 1000) - prev_back_edge_present_time
+        prev_back_edge_present_time = frame.back_edge_timestamp_s * 1000
+
+        gaplist_present_front_edge_times.append(front_edge_time_gap)
+        gaplist_present_back_edge_times.append(back_edge_time_gap)
+
+
+    frame_detail_print("\n\n===== CAPTURED FRAMES =====")
+    prev_present_frame = 0
+    prev_front_edge_present_time = 0.0
+    prev_back_edge_present_time = presentmon_capture_beginning_offset_s
+    gaplist_captured_frames = []
+    gaplist_captured_front_edge_times = []
+    gaplist_captured_back_edge_times = []
+
+    for frame in captured_framelist:
+        frame_gap = frame.present_frame - prev_present_frame
+        prev_present_frame = frame.present_frame
+
+        front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
+        prev_front_edge_present_time = frame.present_t_ms
+
+        back_edge_time_gap = (frame.back_edge_timestamp_s * 1000) - prev_back_edge_present_time
+        prev_back_edge_present_time = frame.back_edge_timestamp_s * 1000
+
+        gaplist_captured_frames.append(frame_gap)
+        gaplist_captured_front_edge_times.append(front_edge_time_gap)
+        gaplist_captured_back_edge_times.append(back_edge_time_gap)
+
+        frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)")
+
+
     frame_detail_print("\n\n===== OUTPUT/COMPOSITED FRAMES =====")
     prev_present_frame = 0
-    prev_present_time = 0.0
-    gaplist_frames = []
-    gaplist_times = []
+    prev_front_edge_present_time = 0.0
+    prev_back_edge_present_time = presentmon_capture_beginning_offset_s
+    gaplist_output_frames = []
+    gaplist_output_front_edge_times = []
+    gaplist_output_back_edge_times = []
 
     for frame in obs.composited_framelist:
         frame_gap = frame.present_frame - prev_present_frame
         prev_present_frame = frame.present_frame
-        time_gap = frame.present_t_ms - prev_present_time
-        prev_present_time = frame.present_t_ms
 
-        gaplist_frames.append(frame_gap)
-        gaplist_times.append(time_gap)
+        front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
+        prev_front_edge_present_time = frame.present_t_ms
+
+        back_edge_time_gap = (frame.back_edge_timestamp_s * 1000) - prev_back_edge_present_time
+        prev_back_edge_present_time = frame.back_edge_timestamp_s * 1000
+
+        gaplist_output_frames.append(frame_gap)
+        gaplist_output_front_edge_times.append(front_edge_time_gap)
+        gaplist_output_back_edge_times.append(back_edge_time_gap)
 
         dupstr = " DUP" if frame.disposition == Disp.COMPOSITED_DUP else ""
 
-        frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} frames, {time_gap:0.3f}ms{dupstr}")
+        frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back){dupstr}")
+
+    composited_frames_count = len(obs.composited_framelist)
+    unique_composited_frames_count = len(obs.unique_composited_framelist)
+    unique_frame_percentage = (unique_composited_frames_count / composited_frames_count) * 100
 
     print("\n\n===== STATS =====")
     print(f"Presented frames: {len(presented_framelist)}")
-    print(f"Captured frames: {len(captured_framelist)} ({len(captured_framelist) - len(obs.composited_framelist)} unused)")
-    print(f"Composited/output frames: {len(obs.composited_framelist)}")
+    print(f"Captured frames: {len(captured_framelist)} ({len(captured_framelist) - unique_composited_frames_count} unused)")
+    print(f"Composited/output frames: {len(obs.composited_framelist)} ({unique_composited_frames_count} unique ({unique_frame_percentage:0.3f}% unique, {100 - unique_frame_percentage:0.3f}% doubled))")
 
-    g_avg = statistics.mean(gaplist_frames)
-    g_med = statistics.median(gaplist_frames)
-    g_min = min(gaplist_frames)
-    g_max = max(gaplist_frames)
-    g_stddev = statistics.stdev(gaplist_frames)
-    print(
-        f"\nFrame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+    avg_fps = len(presented_framelist) / (presented_framelist[-1].front_edge_timestamp_s - presented_framelist[0].front_edge_timestamp_s)
+    print(f"\nInput/game average FPS: {avg_fps:0.3f}")
 
-    g_avg = statistics.mean(gaplist_times)
-    g_med = statistics.median(gaplist_times)
-    g_min = min(gaplist_times)
-    g_max = max(gaplist_times)
-    g_stddev = statistics.stdev(gaplist_times)
+    g_avg = statistics.mean(gaplist_present_front_edge_times)
+    g_med = statistics.median(gaplist_present_front_edge_times)
+    g_min = min(gaplist_present_front_edge_times)
+    g_max = max(gaplist_present_front_edge_times)
+    g_stddev = statistics.stdev(gaplist_present_front_edge_times)
     print(
-        f"Frame time gaps: {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+        f"Input/game frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+    g_avg = statistics.mean(gaplist_present_back_edge_times)
+    g_med = statistics.median(gaplist_present_back_edge_times)
+    g_min = min(gaplist_present_back_edge_times)
+    g_max = max(gaplist_present_back_edge_times)
+    g_stddev = statistics.stdev(gaplist_present_back_edge_times)
+    print(
+        f"Input/game frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+
+    g_avg = statistics.mean(gaplist_captured_frames)
+    g_med = statistics.median(gaplist_captured_frames)
+    g_min = min(gaplist_captured_frames)
+    g_max = max(gaplist_captured_frames)
+    g_stddev = statistics.stdev(gaplist_captured_frames)
+    print(
+        f"\nCaptured frame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+
+    g_avg = statistics.mean(gaplist_captured_front_edge_times)
+    g_med = statistics.median(gaplist_captured_front_edge_times)
+    g_min = min(gaplist_captured_front_edge_times)
+    g_max = max(gaplist_captured_front_edge_times)
+    g_stddev = statistics.stdev(gaplist_captured_front_edge_times)
+    print(
+        f"Captured frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+    g_avg = statistics.mean(gaplist_captured_back_edge_times)
+    g_med = statistics.median(gaplist_captured_back_edge_times)
+    g_min = min(gaplist_captured_back_edge_times)
+    g_max = max(gaplist_captured_back_edge_times)
+    g_stddev = statistics.stdev(gaplist_captured_back_edge_times)
+    print(
+        f"Captured frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+
+    g_avg = statistics.mean(gaplist_output_frames)
+    g_med = statistics.median(gaplist_output_frames)
+    g_min = min(gaplist_output_frames)
+    g_max = max(gaplist_output_frames)
+    g_stddev = statistics.stdev(gaplist_output_frames)
+    print(
+        f"\nOutput/composited frame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+
+    g_avg = statistics.mean(gaplist_output_front_edge_times)
+    g_med = statistics.median(gaplist_output_front_edge_times)
+    g_min = min(gaplist_output_front_edge_times)
+    g_max = max(gaplist_output_front_edge_times)
+    g_stddev = statistics.stdev(gaplist_output_front_edge_times)
+    print(
+        f"Output/composited frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+    g_avg = statistics.mean(gaplist_output_back_edge_times)
+    g_med = statistics.median(gaplist_output_back_edge_times)
+    g_min = min(gaplist_output_back_edge_times)
+    g_max = max(gaplist_output_back_edge_times)
+    g_stddev = statistics.stdev(gaplist_output_back_edge_times)
+    print(
+        f"Output/composited frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
     return 0
 
