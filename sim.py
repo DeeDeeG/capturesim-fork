@@ -277,7 +277,7 @@ def main(argv: List[str]) -> int:
 
 
     frame_detail_print("\n\n===== CAPTURED FRAMES =====")
-    prev_present_frame = 0
+    prev_present_frame = None
     prev_front_edge_present_time = None
     prev_back_edge_present_time = None
     gaplist_captured_frames = []
@@ -285,7 +285,10 @@ def main(argv: List[str]) -> int:
     gaplist_captured_back_edge_times = []
 
     for frame in captured_framelist:
-        frame_gap = frame.present_frame - prev_present_frame
+        if prev_present_frame == None:
+            frame_gap = None
+        else:
+            frame_gap = frame.present_frame - prev_present_frame
         prev_present_frame = frame.present_frame
 
         if prev_front_edge_present_time == None:
@@ -308,14 +311,16 @@ def main(argv: List[str]) -> int:
         # between the 1st and the n-1'st frame, the frame just before the capture .csv's first row.
         # gaplist_present_back_edge_times[0] = None
 
-        frontstr = "N/A (front)" if front_edge_time_gap == None else f"{front_edge_time_gap:0.3f}ms (front)"
-        backstr = "N/A (back)" if back_edge_time_gap == None else f"{back_edge_time_gap:0.3f}ms (back)"
+        if frame.present_frame == 0:
+            gapstr = "gap N/A"
+        else:
+            gapstr = f"gap {frame_gap} pframes, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
 
-        frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} pframes, {frontstr}, {backstr}")
+        frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}")
 
 
     frame_detail_print("\n\n===== OUTPUT/COMPOSITED FRAMES =====")
-    prev_present_frame = 0
+    prev_present_frame = None
     prev_front_edge_present_time = None
     prev_back_edge_present_time = None
     gaplist_output_frames = []
@@ -323,7 +328,10 @@ def main(argv: List[str]) -> int:
     gaplist_output_back_edge_times = []
 
     for frame in obs.composited_framelist:
-        frame_gap = frame.present_frame - prev_present_frame
+        if prev_present_frame == None:
+            frame_gap = None
+        else:
+            frame_gap = frame.present_frame - prev_present_frame
         prev_present_frame = frame.present_frame
 
         if prev_front_edge_present_time == None:
@@ -346,11 +354,14 @@ def main(argv: List[str]) -> int:
         gaplist_output_front_edge_times.append(front_edge_time_gap)
         gaplist_output_back_edge_times.append(back_edge_time_gap)
 
-        frontstr = "N/A (front)" if front_edge_time_gap == None else f"{front_edge_time_gap:0.3f}ms (front)"
-        backstr = "N/A (back)" if back_edge_time_gap == None else f"{back_edge_time_gap:0.3f}ms (back)"
+        if frame.composite_frame == 0:
+            gapstr = "gap N/A"
+        else:
+            gapstr = f"gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
+
         dupstr = " DUP" if frame.disposition == Disp.COMPOSITED_DUP else ""
 
-        frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} frames, {frontstr}, {backstr}{dupstr}")
+        frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}")
 
     composited_frames_count = len(obs.composited_framelist)
     unique_composited_frames_count = len(obs.unique_composited_framelist)
@@ -381,11 +392,11 @@ def main(argv: List[str]) -> int:
         f"Input/game frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
 
-    g_avg = statistics.mean(gaplist_captured_frames)
-    g_med = statistics.median(gaplist_captured_frames)
-    g_min = min(gaplist_captured_frames)
-    g_max = max(gaplist_captured_frames)
-    g_stddev = statistics.stdev(gaplist_captured_frames)
+    g_avg = statistics.mean(gaplist_captured_frames[1:])
+    g_med = statistics.median(gaplist_captured_frames[1:])
+    g_min = min(gaplist_captured_frames[1:])
+    g_max = max(gaplist_captured_frames[1:])
+    g_stddev = statistics.stdev(gaplist_captured_frames[1:])
     print(
         f"\nCaptured frame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
 
@@ -406,11 +417,11 @@ def main(argv: List[str]) -> int:
         f"Captured frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
 
-    g_avg = statistics.mean(gaplist_output_frames)
-    g_med = statistics.median(gaplist_output_frames)
-    g_min = min(gaplist_output_frames)
-    g_max = max(gaplist_output_frames)
-    g_stddev = statistics.stdev(gaplist_output_frames)
+    g_avg = statistics.mean(gaplist_output_frames[1:])
+    g_med = statistics.median(gaplist_output_frames[1:])
+    g_min = min(gaplist_output_frames[1:])
+    g_max = max(gaplist_output_frames[1:])
+    g_stddev = statistics.stdev(gaplist_output_frames[1:])
     print(
         f"\nOutput/composited frame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
 
