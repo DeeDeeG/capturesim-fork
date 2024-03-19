@@ -37,9 +37,8 @@ class Disp (enum.Enum):
 @dataclass
 class GameFrame:
     present_frame: int # The game/input frame number, starting from frame 0 and incrementing by 1 per subsequent row (per subsequent frame) down the capture .csv file.
-    front_edge_timestamp_s: float # Timestamp of the "front edge" of this frame (beginning/moment when this frame's present call was initially called). Won't start from exactly 0s, especially if PresentMon was run with a delayed capture start on the CLI. A start time offset may need to be calculated and used with these timestamps for that reason, so that the first frame happens at roughly 0s, each subsequent frame happens one additional frametime later than 0s each, etc... in order to calculate stats properly from this. Otherwise the first frame may appear to be multiple seconds long.
-    back_edge_timestamp_s: float # Is this computed correctly/accurately? # Timestamp of the "back edge" (end/moment of return) of this frame's present call.
     present_t_ms: float # Loosely speaking: the total amount of game time elapsed during frames in the capture file, starting from the first through to this frame, inclusive, in ms. Should be larger for each successive frame. Technically speaking: The sum of msBetweenPresents columns for each frame in the PresentMon capture .csv file processed so far, starting from the first frame through to this one, inclusive.
+    back_edge_present_t_ms: float # Same as the above, but based on "back edge" times. These have to be calculated relative to the front edge times, since they are not provided directly in the PresentMon .csv file, only indirectly via front edge times + the msInPresentAPI column of the .csv file.
     capture_t_ms: Optional[float] = None # Is this useful? # The timestamp of the simulated moment this frame was "captured" in the simulated game capture loop.
     composite_t_ms: Optional[float] = None # Timestamp of when the simulated OBS render loop "composited" this frame's visuals out to the hypothetical OBS final output (e.g. stream or recording, for a real-world analogy).
     capture_frame: Optional[int] = None # This frame's position in the list of captured frames, if this one eventually got captured. Set during the simulated capture loop, not ahead of time.
@@ -66,13 +65,11 @@ class FrameStream:
 
         for rownum, row in enumerate(self.reader):
             self.gametime_ms += float(row['msBetweenPresents'])
-            self.front_edge_timestamp_s = float(row['TimeInSeconds'])
-            self.back_edge_timestamp_s = self.front_edge_timestamp_s + (float(row['msInPresentAPI']) / 1000)
+            self.back_edge_gametime_ms = self.gametime_ms + float(row['msInPresentAPI'])
             yield GameFrame(
                 present_frame=rownum,
-                front_edge_timestamp_s=self.front_edge_timestamp_s,
-                back_edge_timestamp_s=self.back_edge_timestamp_s,
                 present_t_ms=self.gametime_ms,
+                back_edge_present_t_ms=self.back_edge_gametime_ms,
                 disposition=Disp.UNKNOWN,
             )
 
@@ -257,27 +254,32 @@ def main(argv: List[str]) -> int:
                 dispstr = frame.disposition.name
             print(f"pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {dispstr}")
 
-    presentmon_capture_beginning_offset_s = float(round(presented_framelist[0].back_edge_timestamp_s) * 1000)
-
     prev_front_edge_present_time = 0.0
-    prev_back_edge_present_time = presentmon_capture_beginning_offset_s
+    prev_back_edge_present_time = None
     gaplist_present_front_edge_times = []
     gaplist_present_back_edge_times = []
     for frame in presented_framelist:
         front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
         prev_front_edge_present_time = frame.present_t_ms
 
-        back_edge_time_gap = (frame.back_edge_timestamp_s * 1000) - prev_back_edge_present_time
-        prev_back_edge_present_time = frame.back_edge_timestamp_s * 1000
+        if prev_back_edge_present_time == None:
+            back_edge_time_gap = None
+        else:
+            back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
+        prev_back_edge_present_time = frame.back_edge_present_t_ms
 
         gaplist_present_front_edge_times.append(front_edge_time_gap)
         gaplist_present_back_edge_times.append(back_edge_time_gap)
 
+    # We don't have enough info in the .csv to know how much back edge time passed
+    # between the 1st and the n-1'st frame, the frame just before the capture .csv's first row.
+    # gaplist_present_back_edge_times[0] = None
+
 
     frame_detail_print("\n\n===== CAPTURED FRAMES =====")
     prev_present_frame = 0
-    prev_front_edge_present_time = 0.0
-    prev_back_edge_present_time = presentmon_capture_beginning_offset_s
+    prev_front_edge_present_time = None
+    prev_back_edge_present_time = None
     gaplist_captured_frames = []
     gaplist_captured_front_edge_times = []
     gaplist_captured_back_edge_times = []
@@ -286,23 +288,36 @@ def main(argv: List[str]) -> int:
         frame_gap = frame.present_frame - prev_present_frame
         prev_present_frame = frame.present_frame
 
-        front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
+        if prev_front_edge_present_time == None:
+            front_edge_time_gap = None
+        else:
+            front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
         prev_front_edge_present_time = frame.present_t_ms
 
-        back_edge_time_gap = (frame.back_edge_timestamp_s * 1000) - prev_back_edge_present_time
-        prev_back_edge_present_time = frame.back_edge_timestamp_s * 1000
+        if prev_back_edge_present_time == None:
+            back_edge_time_gap = None
+        else:
+            back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
+        prev_back_edge_present_time = frame.back_edge_present_t_ms
 
         gaplist_captured_frames.append(frame_gap)
         gaplist_captured_front_edge_times.append(front_edge_time_gap)
         gaplist_captured_back_edge_times.append(back_edge_time_gap)
 
-        frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)")
+        # We don't have enough info in the .csv to know how much back edge time passed
+        # between the 1st and the n-1'st frame, the frame just before the capture .csv's first row.
+        # gaplist_present_back_edge_times[0] = None
+
+        frontstr = "N/A (front)" if front_edge_time_gap == None else f"{front_edge_time_gap:0.3f}ms (front)"
+        backstr = "N/A (back)" if back_edge_time_gap == None else f"{back_edge_time_gap:0.3f}ms (back)"
+
+        frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} pframes, {frontstr}, {backstr}")
 
 
     frame_detail_print("\n\n===== OUTPUT/COMPOSITED FRAMES =====")
     prev_present_frame = 0
-    prev_front_edge_present_time = 0.0
-    prev_back_edge_present_time = presentmon_capture_beginning_offset_s
+    prev_front_edge_present_time = None
+    prev_back_edge_present_time = None
     gaplist_output_frames = []
     gaplist_output_front_edge_times = []
     gaplist_output_back_edge_times = []
@@ -311,19 +326,31 @@ def main(argv: List[str]) -> int:
         frame_gap = frame.present_frame - prev_present_frame
         prev_present_frame = frame.present_frame
 
-        front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
+        if prev_front_edge_present_time == None:
+            front_edge_time_gap = None
+        else:
+            front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
         prev_front_edge_present_time = frame.present_t_ms
 
-        back_edge_time_gap = (frame.back_edge_timestamp_s * 1000) - prev_back_edge_present_time
-        prev_back_edge_present_time = frame.back_edge_timestamp_s * 1000
+        if prev_back_edge_present_time == None:
+            back_edge_time_gap = None
+        else:
+            back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
+        prev_back_edge_present_time = frame.back_edge_present_t_ms
+
+        # We don't have enough info in the .csv to know how much back edge time passed
+        # between the 1st and the n-1'st frame, the frame just before the capture .csv's first row.
+        # gaplist_present_back_edge_times[0] = None
 
         gaplist_output_frames.append(frame_gap)
         gaplist_output_front_edge_times.append(front_edge_time_gap)
         gaplist_output_back_edge_times.append(back_edge_time_gap)
 
+        frontstr = "N/A (front)" if front_edge_time_gap == None else f"{front_edge_time_gap:0.3f}ms (front)"
+        backstr = "N/A (back)" if back_edge_time_gap == None else f"{back_edge_time_gap:0.3f}ms (back)"
         dupstr = " DUP" if frame.disposition == Disp.COMPOSITED_DUP else ""
 
-        frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back){dupstr}")
+        frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap {frame_gap} frames, {frontstr}, {backstr}{dupstr}")
 
     composited_frames_count = len(obs.composited_framelist)
     unique_composited_frames_count = len(obs.unique_composited_framelist)
@@ -332,9 +359,9 @@ def main(argv: List[str]) -> int:
     print("\n\n===== STATS =====")
     print(f"Presented frames: {len(presented_framelist)}")
     print(f"Captured frames: {len(captured_framelist)} ({len(captured_framelist) - unique_composited_frames_count} unused)")
-    print(f"Composited/output frames: {len(obs.composited_framelist)} ({unique_composited_frames_count} unique ({unique_frame_percentage:0.3f}% unique, {100 - unique_frame_percentage:0.3f}% doubled))")
+    print(f"Composited/output frames: {len(obs.composited_framelist)} ({unique_composited_frames_count} unique) ({unique_frame_percentage:0.3f}% unique, {100 - unique_frame_percentage:0.3f}% doubled)")
 
-    avg_fps = len(presented_framelist) / (presented_framelist[-1].front_edge_timestamp_s - presented_framelist[0].front_edge_timestamp_s)
+    avg_fps = len(presented_framelist) / ((presented_framelist[-1].present_t_ms - presented_framelist[0].present_t_ms) / 1000)
     print(f"\nInput/game average FPS: {avg_fps:0.3f}")
 
     g_avg = statistics.mean(gaplist_present_front_edge_times)
@@ -345,11 +372,11 @@ def main(argv: List[str]) -> int:
     print(
         f"Input/game frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
-    g_avg = statistics.mean(gaplist_present_back_edge_times)
-    g_med = statistics.median(gaplist_present_back_edge_times)
-    g_min = min(gaplist_present_back_edge_times)
-    g_max = max(gaplist_present_back_edge_times)
-    g_stddev = statistics.stdev(gaplist_present_back_edge_times)
+    g_avg = statistics.mean(gaplist_present_back_edge_times[1:])
+    g_med = statistics.median(gaplist_present_back_edge_times[1:])
+    g_min = min(gaplist_present_back_edge_times[1:])
+    g_max = max(gaplist_present_back_edge_times[1:])
+    g_stddev = statistics.stdev(gaplist_present_back_edge_times[1:])
     print(
         f"Input/game frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
@@ -362,19 +389,19 @@ def main(argv: List[str]) -> int:
     print(
         f"\nCaptured frame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
 
-    g_avg = statistics.mean(gaplist_captured_front_edge_times)
-    g_med = statistics.median(gaplist_captured_front_edge_times)
-    g_min = min(gaplist_captured_front_edge_times)
-    g_max = max(gaplist_captured_front_edge_times)
-    g_stddev = statistics.stdev(gaplist_captured_front_edge_times)
+    g_avg = statistics.mean(gaplist_captured_front_edge_times[1:])
+    g_med = statistics.median(gaplist_captured_front_edge_times[1:])
+    g_min = min(gaplist_captured_front_edge_times[1:])
+    g_max = max(gaplist_captured_front_edge_times[1:])
+    g_stddev = statistics.stdev(gaplist_captured_front_edge_times[1:])
     print(
         f"Captured frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
-    g_avg = statistics.mean(gaplist_captured_back_edge_times)
-    g_med = statistics.median(gaplist_captured_back_edge_times)
-    g_min = min(gaplist_captured_back_edge_times)
-    g_max = max(gaplist_captured_back_edge_times)
-    g_stddev = statistics.stdev(gaplist_captured_back_edge_times)
+    g_avg = statistics.mean(gaplist_captured_back_edge_times[1:])
+    g_med = statistics.median(gaplist_captured_back_edge_times[1:])
+    g_min = min(gaplist_captured_back_edge_times[1:])
+    g_max = max(gaplist_captured_back_edge_times[1:])
+    g_stddev = statistics.stdev(gaplist_captured_back_edge_times[1:])
     print(
         f"Captured frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
@@ -387,19 +414,19 @@ def main(argv: List[str]) -> int:
     print(
         f"\nOutput/composited frame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
 
-    g_avg = statistics.mean(gaplist_output_front_edge_times)
-    g_med = statistics.median(gaplist_output_front_edge_times)
-    g_min = min(gaplist_output_front_edge_times)
-    g_max = max(gaplist_output_front_edge_times)
-    g_stddev = statistics.stdev(gaplist_output_front_edge_times)
+    g_avg = statistics.mean(gaplist_output_front_edge_times[1:])
+    g_med = statistics.median(gaplist_output_front_edge_times[1:])
+    g_min = min(gaplist_output_front_edge_times[1:])
+    g_max = max(gaplist_output_front_edge_times[1:])
+    g_stddev = statistics.stdev(gaplist_output_front_edge_times[1:])
     print(
         f"Output/composited frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
-    g_avg = statistics.mean(gaplist_output_back_edge_times)
-    g_med = statistics.median(gaplist_output_back_edge_times)
-    g_min = min(gaplist_output_back_edge_times)
-    g_max = max(gaplist_output_back_edge_times)
-    g_stddev = statistics.stdev(gaplist_output_back_edge_times)
+    g_avg = statistics.mean(gaplist_output_back_edge_times[1:])
+    g_med = statistics.median(gaplist_output_back_edge_times[1:])
+    g_min = min(gaplist_output_back_edge_times[1:])
+    g_max = max(gaplist_output_back_edge_times[1:])
+    g_stddev = statistics.stdev(gaplist_output_back_edge_times[1:])
     print(
         f"Output/composited frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
