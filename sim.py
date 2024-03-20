@@ -239,11 +239,14 @@ def main(argv: List[str]) -> int:
         # call it for every single game frame just to have it reject most of
         # them
         if frame.present_frame == 0:
-            # Fill in a made-up filler n-1 pframe, representing the frame
-            # just before the capture .csv started (a "seed frame"), to catch simulated OBS time up
-            # to where the first frame in the actual capture .csv would be composited.
-            # We must ignore these frames for stats purposes, but this "seeds" (iterates forward)
-            # OBS time so that the composite_t_ms is accurate/reasonable for actual presented frames.
+            # Fill in composites of a made-up filler "n-1" pframe (a "seed frame"),
+            # representing the frame just before the capture .csv started,
+            # to catch simulated OBS composite times up to when the first frame in the actual capture .csv should be composited.
+            # We must ignore these filler frames for stats purposes, but this "seeds" (iterates forward)
+            # OBS time so that the composite_t_ms is accurate/reasonable for the first
+            # actual presented frames. Specifically, this is ecessary if the first frame in the .csv
+            # has a present_t_ms slower than the first OBS composite interval.
+            # Otherwise we composite this first real, slow pframe too many times, and it distorts stats slightly.
             while obs.next_composite_time() < frame.present_t_ms:
                 obs.composite(seedframe)
                 last_captured = None
