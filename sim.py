@@ -86,12 +86,17 @@ class GameCapture:
 
     def __init__(self, interval: float) -> None:
         self.capture_interval_ms = interval
+        print(f"Initializing GameCapture class, GameCapture.capture_interval_ms is {self.capture_interval_ms}")
 
     def capture(self, frame: GameFrame) -> bool:
         elapsed = frame.present_t_ms - self.last_capture_ms
 
+        print(f"~~~ In capture(). frame.present_t_ms is {frame.present_t_ms}, self.last_capture_ms is {self.last_capture_ms}, elapsed is {elapsed}... self.last_capture_framenum is {self.last_capture_framenum}")
+        print(f"Top of capture(), frame is {frame}")
+
         # Time to capture?
         if elapsed < self.capture_interval_ms:
+            print("in capture(), elapsed is too short, setting frame.disposition to Disp.IGNORED and returning False")
             frame.disposition = Disp.IGNORED
             return False
 
@@ -101,18 +106,22 @@ class GameCapture:
         frame.capture_t_ms = frame.present_t_ms
         frame.capture_frame = self.last_capture_framenum + 1
         self.last_capture_framenum += 1
+        print(f"In capture(), just captured, set disposition, capture_t_ms, and capture_frame -- frame is now {frame}")
+        print(f"GameCapture.last_capture_frame is now frame.present_frame ({self.last_capture_frame}). GameCapture.last_capture_framenum incremented by 1 ({self.last_capture_framenum})")
 
         # set the last capture time so we know when to capture next
         #
         # if the time elapsed has been really long, go from now.
         if elapsed > self.capture_interval_ms * 2:
             self.last_capture_ms = frame.present_t_ms
+            print(f"~~ In capture(), just jumped GameCapture.last_capture_ms ahead to frame.present_t_ms ({self.last_capture_ms}). Returning True.")
             return True
 
         # else we're on a normal cadance, backdate the last capture
         # time to make it an even multiple of half the OBS render
         # interval
         self.last_capture_ms += self.capture_interval_ms
+        print(f"~~ In capture(), just incremented GameCapture.last_capture_ms by GameCapture.capture_interval_ms. Now last_capture_ms is {self.last_capture_ms}. Returning True.")
         return True
 
 
@@ -128,9 +137,11 @@ class OBS:
         self.composite_interval_ms = 1000.0 / fps
 
     def next_composite_time(self) -> float:
+        print(f"- In next_composite_time, self.last_composite_t_ms: {self.last_composite_t_ms}; self.composite_interval_ms: {self.composite_interval_ms}. Returning their sum: ({self.last_composite_t_ms + self.composite_interval_ms})")
         return self.last_composite_t_ms + self.composite_interval_ms
 
     def composite(self, frame: GameFrame) -> bool:
+        print(f"+++ In composite(), input frame is {frame}")
         if frame.disposition not in [Disp.CAPTURED, Disp.COMPOSITED, Disp.COMPOSITED_DUP, Disp.SEED]:
             print(
                 f"WARNING: composite() called on non-captured frame: {frame.present_frame} @ {frame.present_t_ms} ({frame.disposition})", file=sys.stderr)
@@ -146,30 +157,45 @@ class OBS:
         fakeframe.composite_t_ms = self.next_composite_time()
         fakeframe.disposition = Disp.COMPOSITED
 
+        print(f"In composite(), fakeframe just generated, here it is: {fakeframe}")
+
         # mark the original frame as composited
         frame.composite_frame = self.last_composite_framenum + 1
         frame.composite_t_ms = self.next_composite_time()
+
+        print(f"In composite(), just marked the original frame's frame.composite_frame number and set its composite_t_ms... frame is now {frame}")
 
         if self.last_capture_frame is not None and frame.present_frame == self.last_capture_frame.present_frame:
             # duplicate frame, mark it in both the frame passed in, and the
             # frame stored in the composited frame list
             frame.disposition = Disp.COMPOSITED_DUP
             fakeframe.disposition = Disp.COMPOSITED_DUP
+            print(f"In composite(), just marked duplicates' disposition as Disp.COMPOSITED_DUP, frame is {frame}, fakeframe is {fakeframe}")
         else:
             # new frame, not a dup
             frame.disposition = Disp.COMPOSITED
+            print(f"In composite(), new frame, not a dup. Marked original frame disposition as Disp.COMPOSITED. frame is {frame}")
 
-        if fakeframe.capture_t_ms != None:
+        if fakeframe.capture_t_ms is None:
+            print("In composite(), fakeframe was never captured. Must be a seed frame! Not adding to OBS.composited_framelist or OBS.unique_composited_framelist.")
+        else:
+            print("In composite(), About to append fakeframe (which was captured, ergo is not a seed frame) to OBS.composited_framelist!")
             self.composited_framelist.append(fakeframe)
             if fakeframe.disposition != Disp.COMPOSITED_DUP:
+                print("In composite(), fakeframe was captured (not a seed frame) and is not a dup, also appending it to OBS.unique_composited_framelist!")
                 self.unique_composited_framelist.append(fakeframe)
 
+        print("In composite(), Setting OBS.last_capture_frame equal to frame!")
         self.last_capture_frame = frame
 
         # move ourself one composite frame forward
+        print("In composite(), About to increment OBS.last_composite_framenum and OBS.last_composite_t_ms")
+        print(f"Before: self.last_composite_framenum: {self.last_composite_framenum}, self.last_composite_t_ms: {self.last_composite_t_ms}")
         self.last_composite_framenum += 1
         self.last_composite_t_ms = self.next_composite_time()
+        print(f"After: self.last_composite_framenum: {self.last_composite_framenum}, self.last_composite_t_ms: {self.last_composite_t_ms}")
 
+        print("++ In composite(), Returning True!")
         return True
 
 #
@@ -238,6 +264,8 @@ def main(argv: List[str]) -> int:
         # simulates having the compositor run on a timer without having to
         # call it for every single game frame just to have it reject most of
         # them
+        print(f"*** In main, looping through the presented frames... frame num is {frame.present_frame}... last_captured is {last_captured}")
+        print(f"Top of main, frame is: {frame}")
         if frame.present_frame == 0:
             # Fill in composites of a made-up filler "n-1" pframe (a "seed frame"),
             # representing the frame just before the capture .csv started,
@@ -247,21 +275,38 @@ def main(argv: List[str]) -> int:
             # actual presented frames. Specifically, this is ecessary if the first frame in the .csv
             # has a present_t_ms slower than the first OBS composite interval.
             # Otherwise we composite this first real, slow pframe too many times, and it distorts stats slightly.
+            print("frame.present_frame is 0, if obs.next_composite_time() < frame.present_t_ms, then entering seed loop")
             while obs.next_composite_time() < frame.present_t_ms:
+                print(f"In main, about to composite seedframe, seedframe is {seedframe}")
                 obs.composite(seedframe)
+                print(f"In main again, just composited seedframe, seedframe is {seedframe}")
                 last_captured = None
                 obstime_ms = seedframe.composite_t_ms
 
-        if last_captured is not None:
-            while frame.present_t_ms > obs.next_composite_time():
-                obs.composite(last_captured)
+        print(f"In main after the seed-looooooop, last_captured is {last_captured}")
+        print(f"After seed-loop, frame is: {frame}")
 
+        print(f"In main, checking if last_captured is not None to enter composite loop... last_captured is {last_captured}")
+        if last_captured is not None:
+            print(f"In main, last_captured is not None... frame.present_t_ms is {frame.present_t_ms}, obs.next_composite_time() is {obs.next_composite_time()}, checking if frame.present_t_ms > obs.next_composite_time, if so enter while loop to composite some frame(s)")
+            print(f"Specifically, last_captured is {last_captured}")
+            while frame.present_t_ms > obs.next_composite_time():
+                print(f"In while loop, frame.present_t_ms > obs.next_composite_time, about to obs.composite(last_captured)")
+                obs.composite(last_captured)
+        else:
+            print("In main(), last_captured is None! Not entering the capture loop yet!")
+
+        print("Back in main, about to do capture = gc.capture(frame)")
         captured = gc.capture(frame)
+        print(f"Back in main after gc.capture(frame), captured is {captured}")
         if captured:
+            print(f"In main, captured is truthy, setting last_captured = frame and appending frame to captured_framelist")
             last_captured = frame
             captured_framelist.append(frame)
 
+        print("In main, about to do presented_framelist.append(frame)")
         presented_framelist.append(frame)
+        print("** In main, end of 'for frame in framestream.getframes()' loop iteration!")
 
     # Don't print frame details in stats-only/silent mode
     def frame_detail_print(*fargs):
@@ -390,6 +435,7 @@ def main(argv: List[str]) -> int:
         if frame.composite_frame == 0 or front_edge_time_gap is None:
             gapstr = "gap N/A"
         else:
+            # print(f"frame_gap is {frame_gap}, front_edge_time_gap is {front_edge_time_gap}, back_edge_time_gap is {back_edge_time_gap}")
             gapstr = f"gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
 
         dupstr = " DUP" if frame.disposition == Disp.COMPOSITED_DUP else ""
