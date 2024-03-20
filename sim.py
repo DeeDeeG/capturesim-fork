@@ -346,7 +346,7 @@ def main(argv: List[str]) -> int:
     for frame in obs.composited_framelist:
         if frame.capture_t_ms is None:
             # A seed frame that somehow slipped through the cracks?
-            print("Warning: Seed frame (fake filler frame) encountered during calculation of output/composited frame stats. Skipping this frame in the stats.")
+            print("Warning: Seed frame (fake filler frame) encountered during calculation of output/composited frame stats. Skipping this frame in the gap stats and verbose frame output. Composited frame counts and % unique will be somewhat off.")
             continue
 
         dupstr = " DUP" if frame.disposition == Disp.COMPOSITED_DUP else ""
