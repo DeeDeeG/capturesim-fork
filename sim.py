@@ -316,29 +316,24 @@ def main(argv: List[str]) -> int:
         if prev_present_frame is None:
             # First captured frame has no real gap to report.
             # (It would be the gap between first frame and... nothing? "Undefined"?)
-            # So, we won't calculate a gap from the first frame to "nothing" for stats purposes,
-            # but set the "previous_..." variables all to this frame's values, for the next iteration.
-            prev_present_frame = frame.present_frame
-            prev_front_edge_present_time = frame.present_t_ms
-            prev_back_edge_present_time = frame.back_edge_present_t_ms
+            # So, we won't calculate a gap from the first frame to "nothing" for stats purposes.
             frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap N/A")
-            continue
         else:
             frame_gap = frame.present_frame - prev_present_frame
-            prev_present_frame = frame.present_frame
             front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
-            prev_front_edge_present_time = frame.present_t_ms
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
-            prev_back_edge_present_time = frame.back_edge_present_t_ms
+            gaplist_captured_frames.append(frame_gap)
+            gaplist_captured_front_edge_times.append(front_edge_time_gap)
+            gaplist_captured_back_edge_times.append(back_edge_time_gap)
 
-        gaplist_captured_frames.append(frame_gap)
-        gaplist_captured_front_edge_times.append(front_edge_time_gap)
-        gaplist_captured_back_edge_times.append(back_edge_time_gap)
+            gapstr = f"gap {frame_gap} pframes, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
+            frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}")
 
-        gapstr = f"gap {frame_gap} pframes, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
-
-        frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}")
-
+        # Always update "previous_..." variables, for the next frame to use,
+        # regardless of whether we calculated gap stats for *this* frame.
+        prev_present_frame = frame.present_frame
+        prev_front_edge_present_time = frame.present_t_ms
+        prev_back_edge_present_time = frame.back_edge_present_t_ms
 
     frame_detail_print("\n\n===== OUTPUT/COMPOSITED FRAMES =====")
     prev_present_frame = None
