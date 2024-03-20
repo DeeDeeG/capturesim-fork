@@ -244,7 +244,7 @@ def main(argv: List[str]) -> int:
             # to catch simulated OBS composite times up to when the first frame in the actual capture .csv should be composited.
             # We must ignore these filler frames for stats purposes, but this "seeds" (iterates forward)
             # OBS time so that the composite_t_ms is accurate/reasonable for the first
-            # actual presented frames. Specifically, this is ecessary if the first frame in the .csv
+            # actual presented frames. Specifically, this is necessary if the first frame in the .csv
             # has a present_t_ms slower than the first OBS composite interval.
             # Otherwise we composite this first real, slow pframe too many times, and it distorts stats slightly.
             while obs.next_composite_time() < frame.present_t_ms:
