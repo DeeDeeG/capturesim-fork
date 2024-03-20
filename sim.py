@@ -372,7 +372,7 @@ def main(argv: List[str]) -> int:
     print(f"Captured frames: {len(captured_framelist)} ({len(captured_framelist) - unique_composited_frames_count} unused)")
     print(f"Composited/output frames: {len(obs.composited_framelist)} ({unique_composited_frames_count} unique) ({unique_frame_percentage:0.3f}% unique, {100 - unique_frame_percentage:0.3f}% doubled)")
 
-    avg_fps = len(presented_framelist) / ((presented_framelist[-1].present_t_ms - presented_framelist[0].present_t_ms) / 1000)
+    avg_fps = (len(presented_framelist) - 1) / ((presented_framelist[-1].present_t_ms - presented_framelist[0].present_t_ms) / 1000)
     print(f"\nInput/game average FPS: {avg_fps:0.3f}")
 
     g_avg = statistics.mean(gaplist_present_front_edge_times)
