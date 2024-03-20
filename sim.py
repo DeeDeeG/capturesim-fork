@@ -290,7 +290,7 @@ def main(argv: List[str]) -> int:
         front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
         prev_front_edge_present_time = frame.present_t_ms
 
-        if prev_back_edge_present_time == None:
+        if prev_back_edge_present_time is None:
             back_edge_time_gap = None
         else:
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
@@ -313,19 +313,19 @@ def main(argv: List[str]) -> int:
     gaplist_captured_back_edge_times = []
 
     for frame in captured_framelist:
-        if prev_present_frame == None:
+        if prev_present_frame is None:
             frame_gap = None
         else:
             frame_gap = frame.present_frame - prev_present_frame
         prev_present_frame = frame.present_frame
 
-        if prev_front_edge_present_time == None:
+        if prev_front_edge_present_time is None:
             front_edge_time_gap = None
         else:
             front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
         prev_front_edge_present_time = frame.present_t_ms
 
-        if prev_back_edge_present_time == None:
+        if prev_back_edge_present_time is None:
             back_edge_time_gap = None
         else:
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
@@ -356,24 +356,24 @@ def main(argv: List[str]) -> int:
     gaplist_output_back_edge_times = []
 
     for frame in obs.composited_framelist:
-        if frame.capture_t_ms == None:
+        if frame.capture_t_ms is None:
             # A seed frame that somehow slipped through the cracks?
             print("Warning: Seed frame (fake filler frame) encountered during calculation of output/composited frame stats. Skipping this frame in the stats.")
             continue
 
-        if prev_present_frame == None:
+        if prev_present_frame is None:
             frame_gap = None
         else:
             frame_gap = frame.present_frame - prev_present_frame
         prev_present_frame = frame.present_frame
 
-        if prev_front_edge_present_time == None:
+        if prev_front_edge_present_time is None:
             front_edge_time_gap = None
         else:
             front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
         prev_front_edge_present_time = frame.present_t_ms
 
-        if prev_back_edge_present_time == None:
+        if prev_back_edge_present_time is None:
             back_edge_time_gap = None
         else:
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
@@ -394,7 +394,7 @@ def main(argv: List[str]) -> int:
 
         dupstr = " DUP" if frame.disposition == Disp.COMPOSITED_DUP else ""
 
-        if frame.present_t_ms == None:
+        if frame.present_t_ms is None:
             frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame}, {gapstr}{dupstr}")
         else:
             frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}")
