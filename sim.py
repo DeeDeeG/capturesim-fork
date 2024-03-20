@@ -337,6 +337,7 @@ def main(argv: List[str]) -> int:
 
     frame_detail_print("\n\n===== OUTPUT/COMPOSITED FRAMES =====")
     prev_present_frame = None
+    prev_capture_frame = None
     prev_front_edge_present_time = None
     prev_back_edge_present_time = None
     gaplist_output_frames = []
@@ -364,12 +365,14 @@ def main(argv: List[str]) -> int:
             gaplist_output_front_edge_times.append(front_edge_time_gap)
             gaplist_output_back_edge_times.append(back_edge_time_gap)
 
+            skipstr = " SKIP" if frame.capture_frame - prev_capture_frame > 1 else ""
             gapstr = f"gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
-            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}")
+            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}{skipstr}")
 
         # Always update "previous_..." variables, for the next frame to use,
         # regardless of whether we calculated gap stats for *this* frame.
         prev_present_frame = frame.present_frame
+        prev_capture_frame = frame.capture_frame
         prev_front_edge_present_time = frame.present_t_ms
         prev_back_edge_present_time = frame.back_edge_present_t_ms
 
