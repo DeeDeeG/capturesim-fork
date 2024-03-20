@@ -32,6 +32,7 @@ class Disp (enum.Enum):
     CAPTURED = enum.auto()
     COMPOSITED = enum.auto()
     COMPOSITED_DUP = enum.auto()
+    SEED = enum.auto()
 
 
 @dataclass
@@ -130,7 +131,7 @@ class OBS:
         return self.last_composite_t_ms + self.composite_interval_ms
 
     def composite(self, frame: GameFrame) -> bool:
-        if frame.disposition not in [Disp.CAPTURED, Disp.COMPOSITED, Disp.COMPOSITED_DUP]:
+        if frame.disposition not in [Disp.CAPTURED, Disp.COMPOSITED, Disp.COMPOSITED_DUP, Disp.SEED]:
             print(
                 f"WARNING: composite() called on non-captured frame: {frame.present_frame} @ {frame.present_t_ms} ({frame.disposition})", file=sys.stderr)
             return False
@@ -158,9 +159,11 @@ class OBS:
             # new frame, not a dup
             frame.disposition = Disp.COMPOSITED
 
-        self.composited_framelist.append(fakeframe)
-        if fakeframe.disposition != Disp.COMPOSITED_DUP:
-            self.unique_composited_framelist.append(fakeframe)
+        if fakeframe.capture_t_ms != None:
+            self.composited_framelist.append(fakeframe)
+            if fakeframe.disposition != Disp.COMPOSITED_DUP:
+                self.unique_composited_framelist.append(fakeframe)
+
         self.last_capture_frame = frame
 
         # move ourself one composite frame forward
@@ -218,12 +221,34 @@ def main(argv: List[str]) -> int:
     print(f"Data from: '{args.presentmon_file}'\nComposite rate {OBS_FPS}fps\n")
 
     framestream = FrameStream(filename=args.presentmon_file)
+
+    seedframe = GameFrame(
+        present_frame=-1,
+        capture_frame=-1,
+        present_t_ms=None,
+        back_edge_present_t_ms=None,
+        disposition=Disp.SEED,
+    )
+
+    obstime_ms = 0.0
+
     for frame in framestream.getframes():
         # is this frame newer than our next expected compositor time? If so,
         # call the compositor on the frame most recently captured. This
         # simulates having the compositor run on a timer without having to
         # call it for every single game frame just to have it reject most of
         # them
+        if frame.present_frame == 0:
+            # Fill in a made-up filler n-1 pframe, representing the frame
+            # just before the capture .csv started (a "seed frame"), to catch simulated OBS time up
+            # to where the first frame in the actual capture .csv would be composited.
+            # We must ignore these frames for stats purposes, but this "seeds" (iterates forward)
+            # OBS time so that the composite_t_ms is accurate/reasonable for actual presented frames.
+            while obs.next_composite_time() < frame.present_t_ms:
+                obs.composite(seedframe)
+                last_captured = None
+                obstime_ms = seedframe.composite_t_ms
+
         if last_captured is not None:
             while frame.present_t_ms > obs.next_composite_time():
                 obs.composite(last_captured)
@@ -328,6 +353,11 @@ def main(argv: List[str]) -> int:
     gaplist_output_back_edge_times = []
 
     for frame in obs.composited_framelist:
+        if frame.capture_t_ms == None:
+            # A seed frame that somehow slipped through the cracks?
+            print("Warning: Seed frame (fake filler frame) encountered during calculation of output/composited frame stats. Skipping this frame in the stats.")
+            continue
+
         if prev_present_frame == None:
             frame_gap = None
         else:
@@ -354,14 +384,17 @@ def main(argv: List[str]) -> int:
         gaplist_output_front_edge_times.append(front_edge_time_gap)
         gaplist_output_back_edge_times.append(back_edge_time_gap)
 
-        if frame.composite_frame == 0:
+        if frame.composite_frame == 0 or front_edge_time_gap is None:
             gapstr = "gap N/A"
         else:
             gapstr = f"gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
 
         dupstr = " DUP" if frame.disposition == Disp.COMPOSITED_DUP else ""
 
-        frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}")
+        if frame.present_t_ms == None:
+            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame}, {gapstr}{dupstr}")
+        else:
+            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}")
 
     composited_frames_count = len(obs.composited_framelist)
     unique_composited_frames_count = len(obs.unique_composited_framelist)
