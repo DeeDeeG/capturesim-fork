@@ -314,35 +314,28 @@ def main(argv: List[str]) -> int:
 
     for frame in captured_framelist:
         if prev_present_frame is None:
-            frame_gap = None
+            # First captured frame has no real gap to report.
+            # (It would be the gap between first frame and... nothing? "Undefined"?)
+            # So, we won't calculate a gap from the first frame to "nothing" for stats purposes,
+            # but set the "previous_..." variables all to this frame's values, for the next iteration.
+            prev_present_frame = frame.present_frame
+            prev_front_edge_present_time = frame.present_t_ms
+            prev_back_edge_present_time = frame.back_edge_present_t_ms
+            frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap N/A")
+            continue
         else:
             frame_gap = frame.present_frame - prev_present_frame
-        prev_present_frame = frame.present_frame
-
-        if prev_front_edge_present_time is None:
-            front_edge_time_gap = None
-        else:
+            prev_present_frame = frame.present_frame
             front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
-        prev_front_edge_present_time = frame.present_t_ms
-
-        if prev_back_edge_present_time is None:
-            back_edge_time_gap = None
-        else:
+            prev_front_edge_present_time = frame.present_t_ms
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
-        prev_back_edge_present_time = frame.back_edge_present_t_ms
+            prev_back_edge_present_time = frame.back_edge_present_t_ms
 
         gaplist_captured_frames.append(frame_gap)
         gaplist_captured_front_edge_times.append(front_edge_time_gap)
         gaplist_captured_back_edge_times.append(back_edge_time_gap)
 
-        # We don't have enough info in the .csv to know how much back edge time passed
-        # between the 1st and the n-1'st frame, the frame just before the capture .csv's first row.
-        # gaplist_present_back_edge_times[0] = None
-
-        if frame.present_frame == 0:
-            gapstr = "gap N/A"
-        else:
-            gapstr = f"gap {frame_gap} pframes, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
+        gapstr = f"gap {frame_gap} pframes, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
 
         frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}")
 
@@ -428,27 +421,27 @@ def main(argv: List[str]) -> int:
         f"Input/game frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
 
-    g_avg = statistics.mean(gaplist_captured_frames[1:])
-    g_med = statistics.median(gaplist_captured_frames[1:])
-    g_min = min(gaplist_captured_frames[1:])
-    g_max = max(gaplist_captured_frames[1:])
-    g_stddev = statistics.stdev(gaplist_captured_frames[1:])
+    g_avg = statistics.mean(gaplist_captured_frames)
+    g_med = statistics.median(gaplist_captured_frames)
+    g_min = min(gaplist_captured_frames)
+    g_max = max(gaplist_captured_frames)
+    g_stddev = statistics.stdev(gaplist_captured_frames)
     print(
         f"\nCaptured frame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
 
-    g_avg = statistics.mean(gaplist_captured_front_edge_times[1:])
-    g_med = statistics.median(gaplist_captured_front_edge_times[1:])
-    g_min = min(gaplist_captured_front_edge_times[1:])
-    g_max = max(gaplist_captured_front_edge_times[1:])
-    g_stddev = statistics.stdev(gaplist_captured_front_edge_times[1:])
+    g_avg = statistics.mean(gaplist_captured_front_edge_times)
+    g_med = statistics.median(gaplist_captured_front_edge_times)
+    g_min = min(gaplist_captured_front_edge_times)
+    g_max = max(gaplist_captured_front_edge_times)
+    g_stddev = statistics.stdev(gaplist_captured_front_edge_times)
     print(
         f"Captured frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
-    g_avg = statistics.mean(gaplist_captured_back_edge_times[1:])
-    g_med = statistics.median(gaplist_captured_back_edge_times[1:])
-    g_min = min(gaplist_captured_back_edge_times[1:])
-    g_max = max(gaplist_captured_back_edge_times[1:])
-    g_stddev = statistics.stdev(gaplist_captured_back_edge_times[1:])
+    g_avg = statistics.mean(gaplist_captured_back_edge_times)
+    g_med = statistics.median(gaplist_captured_back_edge_times)
+    g_min = min(gaplist_captured_back_edge_times)
+    g_max = max(gaplist_captured_back_edge_times)
+    g_stddev = statistics.stdev(gaplist_captured_back_edge_times)
     print(
         f"Captured frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
