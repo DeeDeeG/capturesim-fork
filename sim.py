@@ -9,6 +9,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator, List, Optional, Tuple, Union
+from random import random
 
 from tdvutil.argparse import CheckFile
 from xopen import xopen
@@ -119,13 +120,15 @@ class GameCapture:
 class OBS:
     composite_interval_ms: float
     last_composite_framenum: int = -1
-    last_composite_t_ms: float = 0.0
+    last_composite_t_ms: float = 8.33333333333333
     last_capture_frame: Optional[GameFrame] = None
     composited_framelist: List[GameFrame] = []
     unique_composited_framelist: List[GameFrame] = []
 
     def __init__(self, fps: float) -> None:
         self.composite_interval_ms = 1000.0 / fps
+        # self.last_composite_t_ms = random() * self.composite_interval_ms
+        print(f"OBS composite offset start time is: {self.last_composite_t_ms}ms!!!")
 
     def next_composite_time(self) -> float:
         return self.last_composite_t_ms + self.composite_interval_ms
