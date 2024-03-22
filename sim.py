@@ -366,7 +366,7 @@ def main(argv: List[str]) -> int:
             gaplist_output_back_edge_times.append(back_edge_time_gap)
 
             skipstr = " SKIP" if frame.capture_frame - prev_capture_frame > 1 else ""
-            gapstr = f"gap {frame_gap} frames, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
+            gapstr = f"gap {frame_gap} pframes, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
             frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}{skipstr}")
 
         # Always update "previous_..." variables, for the next frame to use,
