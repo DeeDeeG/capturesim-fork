@@ -230,8 +230,6 @@ def main(argv: List[str]) -> int:
         disposition=Disp.SEED,
     )
 
-    obstime_ms = 0.0
-
     for frame in framestream.getframes():
         # is this frame newer than our next expected compositor time? If so,
         # call the compositor on the frame most recently captured. This
@@ -250,7 +248,6 @@ def main(argv: List[str]) -> int:
             while obs.next_composite_time() < frame.present_t_ms:
                 obs.composite(seedframe)
                 last_captured = None
-                obstime_ms = seedframe.composite_t_ms
 
         if last_captured is not None:
             while frame.present_t_ms > obs.next_composite_time():
