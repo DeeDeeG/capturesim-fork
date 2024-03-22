@@ -88,7 +88,7 @@ class GameCapture:
         self.capture_interval_ms = interval
 
     def capture(self, frame: GameFrame) -> bool:
-        elapsed = frame.present_t_ms - self.last_capture_ms
+        elapsed = frame.back_edge_present_t_ms - self.last_capture_ms
 
         # Time to capture?
         if elapsed < self.capture_interval_ms:
@@ -98,7 +98,7 @@ class GameCapture:
         # Time to capture!
         self.last_capture_frame = frame.present_frame
         frame.disposition = Disp.CAPTURED
-        frame.capture_t_ms = frame.present_t_ms
+        frame.capture_t_ms = frame.back_edge_present_t_ms
         frame.capture_frame = self.last_capture_framenum + 1
         self.last_capture_framenum += 1
 
@@ -106,7 +106,7 @@ class GameCapture:
         #
         # if the time elapsed has been really long, go from now.
         if elapsed > self.capture_interval_ms * 2:
-            self.last_capture_ms = frame.present_t_ms
+            self.last_capture_ms = frame.back_edge_present_t_ms
             return True
 
         # else we're on a normal cadance, backdate the last capture
@@ -133,7 +133,7 @@ class OBS:
     def composite(self, frame: GameFrame) -> bool:
         if frame.disposition not in [Disp.CAPTURED, Disp.COMPOSITED, Disp.COMPOSITED_DUP, Disp.SEED]:
             print(
-                f"WARNING: composite() called on non-captured frame: {frame.present_frame} @ {frame.present_t_ms} ({frame.disposition})", file=sys.stderr)
+                f"WARNING: composite() called on non-captured frame: {frame.present_frame} @ {frame.back_edge_present_t_ms} ({frame.disposition})", file=sys.stderr)
             return False
 
         # We depend on the caller to make sure it's actually *time* to composite.
@@ -243,14 +243,14 @@ def main(argv: List[str]) -> int:
             # We must ignore these filler frames for stats purposes, but this "seeds" (iterates forward)
             # OBS time so that the composite_t_ms is accurate/reasonable for the first
             # actual presented frames. Specifically, this is necessary if the first frame in the .csv
-            # has a present_t_ms slower than the first OBS composite interval.
+            # has a back_edge_present_t_ms slower than the first OBS composite interval.
             # Otherwise we composite this first real, slow pframe too many times, and it distorts stats slightly.
-            while obs.next_composite_time() < frame.present_t_ms:
+            while obs.next_composite_time() < frame.back_edge_present_t_ms:
                 obs.composite(seedframe)
                 last_captured = None
 
         if last_captured is not None:
-            while frame.present_t_ms > obs.next_composite_time():
+            while frame.back_edge_present_t_ms > obs.next_composite_time():
                 obs.composite(last_captured)
 
         captured = gc.capture(frame)
@@ -277,7 +277,7 @@ def main(argv: List[str]) -> int:
                 dispstr = f"CAPTURED + COMPOSITED (DUPS) @ otime {frame.composite_t_ms:0.3f}ms"
             else:
                 dispstr = frame.disposition.name
-            print(f"pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {dispstr}")
+            print(f"pframe {frame.present_frame} @ {frame.back_edge_present_t_ms:0.3f}ms, {dispstr}")
 
     prev_front_edge_present_time = 0.0
     prev_back_edge_present_time = None
@@ -314,7 +314,7 @@ def main(argv: List[str]) -> int:
             # First captured frame has no real gap to report.
             # (It would be the gap between first frame and... nothing? "Undefined"?)
             # So, we won't calculate a gap from the first frame to "nothing" for stats purposes.
-            frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap N/A")
+            frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.back_edge_present_t_ms:0.3f}ms, gap N/A")
         else:
             frame_gap = frame.present_frame - prev_present_frame
             front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
@@ -325,7 +325,7 @@ def main(argv: List[str]) -> int:
 
             skipstr = " SKIP" if frame.present_frame - prev_present_frame > 1 else ""
             gapstr = f"gap {frame_gap} pframes, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
-            frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{skipstr}")
+            frame_detail_print(f"cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.back_edge_present_t_ms:0.3f}ms, {gapstr}{skipstr}")
 
         # Always update "previous_..." variables, for the next frame to use,
         # regardless of whether we calculated gap stats for *this* frame.
@@ -354,7 +354,7 @@ def main(argv: List[str]) -> int:
             # First composited frame has no real gap to report.
             # (It would be the gap between first frame and... nothing? "Undefined"?)
             # So, we won't calculate a gap from the first frame to "nothing" for stats purposes.
-            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap N/A{dupstr}")
+            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.back_edge_present_t_ms:0.3f}ms, gap N/A{dupstr}")
         else:
             frame_gap = frame.present_frame - prev_present_frame
             front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
@@ -365,7 +365,7 @@ def main(argv: List[str]) -> int:
 
             skipstr = " SKIP" if frame.capture_frame - prev_capture_frame > 1 else ""
             gapstr = f"gap {frame_gap} pframes, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
-            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}{skipstr}")
+            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.back_edge_present_t_ms:0.3f}ms, {gapstr}{dupstr}{skipstr}")
 
         # Always update "previous_..." variables, for the next frame to use,
         # regardless of whether we calculated gap stats for *this* frame.
@@ -383,7 +383,7 @@ def main(argv: List[str]) -> int:
     print(f"Captured frames: {len(captured_framelist)} ({len(captured_framelist) - unique_composited_frames_count} unused)")
     print(f"Composited/output frames: {len(obs.composited_framelist)} ({unique_composited_frames_count} unique) ({unique_frame_percentage:0.3f}% unique, {100 - unique_frame_percentage:0.3f}% doubled)")
 
-    avg_fps = (len(presented_framelist) - 1) / ((presented_framelist[-1].present_t_ms - presented_framelist[0].present_t_ms) / 1000)
+    avg_fps = (len(presented_framelist) - 1) / ((presented_framelist[-1].back_edge_present_t_ms - presented_framelist[0].back_edge_present_t_ms) / 1000)
     print(f"\nInput/game average FPS: {avg_fps:0.3f}")
 
     g_avg = statistics.mean(gaplist_present_front_edge_times)
