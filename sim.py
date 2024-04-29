@@ -285,8 +285,10 @@ def main(argv: List[str]) -> int:
     prev_back_edge_time_gap = None
     gaplist_present_front_edge_times = []
     gaplist_present_back_edge_times = []
-    deviationslist_front_edge = []
-    deviationslist_back_edge = []
+    deviationslist_rel_present_front_edge = []
+    deviationslist_rel_present_back_edge = []
+    deviationslist_abs_present_front_edge = []
+    deviationslist_abs_present_back_edge = []
     for frame in presented_framelist:
         front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
         prev_front_edge_present_time = frame.present_t_ms
@@ -303,11 +305,13 @@ def main(argv: List[str]) -> int:
         else:
             front_edge_deviation = front_edge_time_gap - prev_front_edge_time_gap
             back_edge_deviation = back_edge_time_gap - prev_back_edge_time_gap
+            deviationslist_rel_present_front_edge.append(front_edge_deviation)
+            deviationslist_rel_present_back_edge.append(back_edge_deviation)
+            deviationslist_abs_present_front_edge.append(abs(front_edge_deviation))
+            deviationslist_abs_present_back_edge.append(abs(back_edge_deviation))
 
         gaplist_present_front_edge_times.append(front_edge_time_gap)
         gaplist_present_back_edge_times.append(back_edge_time_gap)
-        deviationslist_front_edge.append(front_edge_deviation)
-        deviationslist_back_edge.append(back_edge_deviation)
 
         prev_front_edge_time_gap = front_edge_time_gap
         prev_back_edge_time_gap = back_edge_time_gap
@@ -412,6 +416,26 @@ def main(argv: List[str]) -> int:
     g_stddev = statistics.stdev(gaplist_present_back_edge_times[1:])
     print(
         f"Input/game frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+    print()
+
+    g_avg = statistics.mean(deviationslist_rel_present_front_edge)
+    g_med = statistics.median(deviationslist_rel_present_front_edge)
+    g_min = min(deviationslist_rel_present_front_edge)
+    g_max = max(deviationslist_rel_present_front_edge)
+    g_stddev = statistics.stdev(deviationslist_rel_present_front_edge)
+    g_sum = sum(deviationslist_rel_present_front_edge)
+    print(
+        f"Input/game frame-to-frame frametime deviations (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
+    g_avg = statistics.mean(deviationslist_abs_present_front_edge)
+    g_med = statistics.median(deviationslist_abs_present_front_edge)
+    g_min = min(deviationslist_abs_present_front_edge)
+    g_max = max(deviationslist_abs_present_front_edge)
+    g_stddev = statistics.stdev(deviationslist_abs_present_front_edge)
+    g_sum = sum(deviationslist_abs_present_front_edge)
+    print(
+        f"Input/game frame-to-frame frametime deviations (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
 
     g_avg = statistics.mean(gaplist_captured_frames)
