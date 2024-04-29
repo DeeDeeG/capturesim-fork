@@ -427,6 +427,76 @@ def main(argv: List[str]) -> int:
         prev_front_edge_time_gap = front_edge_time_gap
         prev_back_edge_time_gap = back_edge_time_gap
 
+    frame_detail_print("\n\n===== UNIQUE OUTPUT/COMPOSITED FRAMES =====")
+    prev_present_frame = None
+    prev_capture_frame = None
+    prev_composite_frame = None
+    prev_composite_time = None
+    prev_front_edge_present_time = None
+    prev_back_edge_present_time = None
+    prev_front_edge_time_gap = None
+    prev_back_edge_time_gap = None
+    gaplist_unique_output_frames = []
+    gaplist_unique_output_frame_oframes = []
+    gaplist_unique_output_composite_times = []
+    gaplist_unique_output_front_edge_times = []
+    gaplist_unique_output_back_edge_times = []
+    deviationslist_rel_unique_output_front_edge = []
+    deviationslist_rel_unique_output_back_edge = []
+    deviationslist_abs_unique_output_front_edge = []
+    deviationslist_abs_unique_output_back_edge = []
+
+    for frame in obs.unique_composited_framelist:
+        if frame.capture_t_ms is None:
+            # A seed frame that somehow slipped through the cracks?
+            print("Warning: Seed frame (fake filler frame) encountered during calculation of output/composited frame stats. Skipping this frame in the gap stats and verbose frame output. Composited frame counts and % unique will be somewhat off.")
+            continue
+
+        dupstr = " DUP" if frame.disposition == Disp.COMPOSITED_DUP else ""
+
+        if prev_present_frame is None:
+            # First composited frame has no real gap to report.
+            # (It would be the gap between first frame and... nothing? "Undefined"?)
+            # So, we won't calculate a gap from the first frame to "nothing" for stats purposes.
+            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap N/A{dupstr}")
+        else:
+            frame_gap = frame.present_frame - prev_present_frame
+            composite_frame_gap = frame.composite_frame - prev_composite_frame
+            composite_time_gap = frame.composite_t_ms - prev_composite_time
+            front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
+            back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
+            gaplist_unique_output_frames.append(frame_gap)
+            gaplist_unique_output_frame_oframes.append(composite_frame_gap)
+            gaplist_unique_output_composite_times.append(composite_time_gap)
+            gaplist_unique_output_front_edge_times.append(front_edge_time_gap)
+            gaplist_unique_output_back_edge_times.append(back_edge_time_gap)
+
+            skipstr = " SKIP" if frame.capture_frame - prev_capture_frame > 1 else ""
+            gapstr = f"gap {frame_gap} pframes, {composite_frame_gap} oframes, {composite_time_gap:0.3f}ms otime, {front_edge_time_gap:0.3f}ms (front), {back_edge_time_gap:0.3f}ms (back)"
+            frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, {gapstr}{dupstr}{skipstr}")
+
+        if prev_back_edge_time_gap is None:
+            front_edge_deviation = None
+            back_edge_deviation = None
+        else:
+            front_edge_deviation = front_edge_time_gap - prev_front_edge_time_gap
+            back_edge_deviation = back_edge_time_gap - prev_back_edge_time_gap
+            deviationslist_rel_unique_output_front_edge.append(front_edge_deviation)
+            deviationslist_rel_unique_output_back_edge.append(back_edge_deviation)
+            deviationslist_abs_unique_output_front_edge.append(abs(front_edge_deviation))
+            deviationslist_abs_unique_output_back_edge.append(abs(back_edge_deviation))
+
+        # Always update "previous_..." variables, for the next frame to use,
+        # regardless of whether we calculated gap stats for *this* frame.
+        prev_present_frame = frame.present_frame
+        prev_capture_frame = frame.capture_frame
+        prev_composite_frame = frame.composite_frame
+        prev_composite_time = frame.composite_t_ms
+        prev_front_edge_present_time = frame.present_t_ms
+        prev_back_edge_present_time = frame.back_edge_present_t_ms
+        prev_front_edge_time_gap = front_edge_time_gap
+        prev_back_edge_time_gap = back_edge_time_gap
+
     composited_frames_count = len(obs.composited_framelist)
     unique_composited_frames_count = len(obs.unique_composited_framelist)
     unique_frame_percentage = (unique_composited_frames_count / composited_frames_count) * 100
@@ -632,6 +702,88 @@ def main(argv: List[str]) -> int:
     g_dpm = g_sum / capture_duration_minutes
     print(
         f"Output/composited frame-to-frame frametime deviations (absolute) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
+
+
+    g_avg = statistics.mean(gaplist_unique_output_frames)
+    g_med = statistics.median(gaplist_unique_output_frames)
+    g_min = min(gaplist_unique_output_frames)
+    g_max = max(gaplist_unique_output_frames)
+    g_stddev = statistics.stdev(gaplist_unique_output_frames)
+    print(
+        f"\nUnique Output/composited frame pframe number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+
+    g_avg = statistics.mean(gaplist_unique_output_frame_oframes)
+    g_med = statistics.median(gaplist_unique_output_frame_oframes)
+    g_min = min(gaplist_unique_output_frame_oframes)
+    g_max = max(gaplist_unique_output_frame_oframes)
+    g_stddev = statistics.stdev(gaplist_unique_output_frame_oframes)
+    print(
+        f"Unique Output/composited frame oframe number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+
+    g_avg = statistics.mean(gaplist_unique_output_front_edge_times)
+    g_med = statistics.median(gaplist_unique_output_front_edge_times)
+    g_min = min(gaplist_unique_output_front_edge_times)
+    g_max = max(gaplist_unique_output_front_edge_times)
+    g_stddev = statistics.stdev(gaplist_unique_output_front_edge_times)
+    print(
+        f"Unique Output/composited frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+    g_avg = statistics.mean(gaplist_unique_output_back_edge_times)
+    g_med = statistics.median(gaplist_unique_output_back_edge_times)
+    g_min = min(gaplist_unique_output_back_edge_times)
+    g_max = max(gaplist_unique_output_back_edge_times)
+    g_stddev = statistics.stdev(gaplist_unique_output_back_edge_times)
+    print(
+        f"Unique Output/composited frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+    g_avg = statistics.mean(gaplist_unique_output_composite_times)
+    g_med = statistics.median(gaplist_unique_output_composite_times)
+    g_min = min(gaplist_unique_output_composite_times)
+    g_max = max(gaplist_unique_output_composite_times)
+    g_stddev = statistics.stdev(gaplist_unique_output_composite_times)
+    print(
+        f"Unique Output/composited frame time gaps (otime): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+
+
+    g_avg = statistics.mean(deviationslist_rel_unique_output_front_edge)
+    g_med = statistics.median(deviationslist_rel_unique_output_front_edge)
+    g_min = min(deviationslist_rel_unique_output_front_edge)
+    g_max = max(deviationslist_rel_unique_output_front_edge)
+    g_stddev = statistics.stdev(deviationslist_rel_unique_output_front_edge)
+    g_sum = sum(deviationslist_rel_unique_output_front_edge)
+    print(
+        f"\nUnique Output/composited frame-to-frame frametime deviations (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
+    g_avg = statistics.mean(deviationslist_abs_unique_output_front_edge)
+    g_med = statistics.median(deviationslist_abs_unique_output_front_edge)
+    g_min = min(deviationslist_abs_unique_output_front_edge)
+    g_max = max(deviationslist_abs_unique_output_front_edge)
+    g_stddev = statistics.stdev(deviationslist_abs_unique_output_front_edge)
+    g_sum = sum(deviationslist_abs_unique_output_front_edge)
+    g_dps = g_sum / capture_duration_seconds
+    g_dpm = g_sum / capture_duration_minutes
+    print(
+        f"Unique Output/composited frame-to-frame frametime deviations (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
+
+    g_avg = statistics.mean(deviationslist_rel_unique_output_back_edge)
+    g_med = statistics.median(deviationslist_rel_unique_output_back_edge)
+    g_min = min(deviationslist_rel_unique_output_back_edge)
+    g_max = max(deviationslist_rel_unique_output_back_edge)
+    g_stddev = statistics.stdev(deviationslist_rel_unique_output_back_edge)
+    g_sum = sum(deviationslist_rel_unique_output_back_edge)
+    print(
+        f"Unique Output/composited frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
+    g_avg = statistics.mean(deviationslist_abs_unique_output_back_edge)
+    g_med = statistics.median(deviationslist_abs_unique_output_back_edge)
+    g_min = min(deviationslist_abs_unique_output_back_edge)
+    g_max = max(deviationslist_abs_unique_output_back_edge)
+    g_stddev = statistics.stdev(deviationslist_abs_unique_output_back_edge)
+    g_sum = sum(deviationslist_abs_unique_output_back_edge)
+    g_dps = g_sum / capture_duration_seconds
+    g_dpm = g_sum / capture_duration_minutes
+    print(
+        f"Unique Output/composited frame-to-frame frametime deviations (absolute) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
 
     return 0
 
