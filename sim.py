@@ -398,7 +398,12 @@ def main(argv: List[str]) -> int:
     print(f"Captured frames: {len(captured_framelist)} ({len(captured_framelist) - unique_composited_frames_count} unused)")
     print(f"Composited/output frames: {len(obs.composited_framelist)} ({unique_composited_frames_count} unique) ({unique_frame_percentage:0.3f}% unique, {100 - unique_frame_percentage:0.3f}% doubled)")
 
-    avg_fps = (len(presented_framelist) - 1) / ((presented_framelist[-1].present_t_ms - presented_framelist[0].present_t_ms) / 1000)
+    capture_duration_ms = (presented_framelist[-1].present_t_ms - presented_framelist[0].present_t_ms)
+    capture_duration_seconds = capture_duration_ms / 1000
+    capture_duration_minutes = capture_duration_seconds / 60
+    capture_duration_hours = capture_duration_minutes / 60
+
+    avg_fps = (len(presented_framelist) - 1) / capture_duration_seconds
     print(f"\nInput/game average FPS: {avg_fps:0.3f}")
 
     g_avg = statistics.mean(gaplist_present_front_edge_times)
@@ -434,8 +439,10 @@ def main(argv: List[str]) -> int:
     g_max = max(deviationslist_abs_present_front_edge)
     g_stddev = statistics.stdev(deviationslist_abs_present_front_edge)
     g_sum = sum(deviationslist_abs_present_front_edge)
+    g_dps = g_sum / capture_duration_seconds
+    g_dpm = g_sum / capture_duration_minutes
     print(
-        f"Input/game frame-to-frame frametime deviations (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+        f"Input/game frame-to-frame frametime deviations (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
 
     g_avg = statistics.mean(deviationslist_rel_present_back_edge)
     g_med = statistics.median(deviationslist_rel_present_back_edge)
@@ -452,8 +459,10 @@ def main(argv: List[str]) -> int:
     g_max = max(deviationslist_abs_present_back_edge)
     g_stddev = statistics.stdev(deviationslist_abs_present_back_edge)
     g_sum = sum(deviationslist_abs_present_back_edge)
+    g_dps = g_sum / capture_duration_seconds
+    g_dpm = g_sum / capture_duration_minutes
     print(
-        f"Input/game frame-to-frame frametime deviations (absolute) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+        f"Input/game frame-to-frame frametime deviations (absolute) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
 
 
     g_avg = statistics.mean(gaplist_captured_frames)
