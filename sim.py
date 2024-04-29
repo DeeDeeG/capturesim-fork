@@ -281,8 +281,12 @@ def main(argv: List[str]) -> int:
 
     prev_front_edge_present_time = 0.0
     prev_back_edge_present_time = None
+    prev_front_edge_time_gap = None
+    prev_back_edge_time_gap = None
     gaplist_present_front_edge_times = []
     gaplist_present_back_edge_times = []
+    deviationslist_front_edge = []
+    deviationslist_back_edge = []
     for frame in presented_framelist:
         front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
         prev_front_edge_present_time = frame.present_t_ms
@@ -293,13 +297,20 @@ def main(argv: List[str]) -> int:
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
         prev_back_edge_present_time = frame.back_edge_present_t_ms
 
+        if prev_back_edge_time_gap is None:
+            front_edge_deviation = None
+            back_edge_deviation = None
+        else:
+            front_edge_deviation = front_edge_time_gap - prev_front_edge_time_gap
+            back_edge_deviation = back_edge_time_gap - prev_back_edge_time_gap
+
         gaplist_present_front_edge_times.append(front_edge_time_gap)
         gaplist_present_back_edge_times.append(back_edge_time_gap)
+        deviationslist_front_edge.append(front_edge_deviation)
+        deviationslist_back_edge.append(back_edge_deviation)
 
-    # We don't have enough info in the .csv to know how much back edge time passed
-    # between the 1st and the n-1'st frame, the frame just before the capture .csv's first row.
-    # gaplist_present_back_edge_times[0] = None
-
+        prev_front_edge_time_gap = front_edge_time_gap
+        prev_back_edge_time_gap = back_edge_time_gap
 
     frame_detail_print("\n\n===== CAPTURED FRAMES =====")
     prev_present_frame = None
