@@ -422,7 +422,6 @@ def main(argv: List[str]) -> int:
     print(
         f"Input/game frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
-    print()
 
     g_avg = statistics.mean(deviationslist_rel_present_front_edge)
     g_med = statistics.median(deviationslist_rel_present_front_edge)
@@ -431,7 +430,7 @@ def main(argv: List[str]) -> int:
     g_stddev = statistics.stdev(deviationslist_rel_present_front_edge)
     g_sum = sum(deviationslist_rel_present_front_edge)
     print(
-        f"Input/game frame-to-frame frametime deviations (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+        f"\nInput/game frame-to-frame frametime deviations (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
     g_avg = statistics.mean(deviationslist_abs_present_front_edge)
     g_med = statistics.median(deviationslist_abs_present_front_edge)
