@@ -119,7 +119,7 @@ class GameCapture:
 class OBS:
     composite_interval_ms: float
     last_composite_framenum: int = -1
-    last_composite_t_ms: float = 0.0
+    last_composite_t_ms: float = obstime_ms
     last_capture_frame: Optional[GameFrame] = None
     composited_framelist: List[GameFrame] = []
     unique_composited_framelist: List[GameFrame] = []
@@ -218,7 +218,7 @@ def main(argv: List[str]) -> int:
     else:
         gc = GameCapture(obs.composite_interval_ms / args.capture_ratio)
 
-    print(f"Data from: '{args.presentmon_file}'\nComposite rate {OBS_FPS}fps\n")
+    print(f"Data from: '{args.presentmon_file}'\nComposite rate {OBS_FPS}fps\nComposite starting offset: {obstime_ms}ms")
 
     framestream = FrameStream(filename=args.presentmon_file)
 
