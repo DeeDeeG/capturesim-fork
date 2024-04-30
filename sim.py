@@ -386,8 +386,8 @@ def main(argv: List[str]) -> int:
     offsetslist_otime_vs_ptime_front_edge = []
     offsetslist_otime_vs_ptime_back_edge = []
     deviationslist_rel_otime_vs_ptime_front_edge = []
-    deviationslist_abs_otime_vs_ptime_front_edge = []
     deviationslist_rel_otime_vs_ptime_back_edge = []
+    deviationslist_abs_otime_vs_ptime_front_edge = []
     deviationslist_abs_otime_vs_ptime_back_edge = []
 
     for frame in obs.composited_framelist:
@@ -434,8 +434,8 @@ def main(argv: List[str]) -> int:
             otime_vs_ptime_deviation_front_edge = otime_vs_ptime_offset_front_edge - prev_otime_vs_ptime_offset_front_edge
             otime_vs_ptime_deviation_back_edge = otime_vs_ptime_offset_back_edge - prev_otime_vs_ptime_offset_back_edge
             deviationslist_rel_otime_vs_ptime_front_edge.append(otime_vs_ptime_deviation_front_edge)
-            deviationslist_abs_otime_vs_ptime_front_edge.append(abs(otime_vs_ptime_deviation_front_edge))
             deviationslist_rel_otime_vs_ptime_back_edge.append(otime_vs_ptime_deviation_back_edge)
+            deviationslist_abs_otime_vs_ptime_front_edge.append(abs(otime_vs_ptime_deviation_front_edge))
             deviationslist_abs_otime_vs_ptime_back_edge.append(abs(otime_vs_ptime_deviation_back_edge))
 
         # Always update "previous_..." variables, for the next frame to use,
@@ -472,8 +472,8 @@ def main(argv: List[str]) -> int:
     offsetslist_unique_otime_vs_ptime_front_edge = []
     offsetslist_unique_otime_vs_ptime_back_edge = []
     deviationslist_rel_unique_otime_vs_ptime_front_edge = []
-    deviationslist_abs_unique_otime_vs_ptime_front_edge = []
     deviationslist_rel_unique_otime_vs_ptime_back_edge = []
+    deviationslist_abs_unique_otime_vs_ptime_front_edge = []
     deviationslist_abs_unique_otime_vs_ptime_back_edge = []
 
     for frame in obs.unique_composited_framelist:
@@ -524,8 +524,8 @@ def main(argv: List[str]) -> int:
             otime_vs_ptime_deviation_front_edge = otime_vs_ptime_offset_front_edge - prev_otime_vs_ptime_offset_front_edge
             otime_vs_ptime_deviation_back_edge = otime_vs_ptime_offset_back_edge - prev_otime_vs_ptime_offset_back_edge
             deviationslist_rel_unique_otime_vs_ptime_front_edge.append(otime_vs_ptime_deviation_front_edge)
-            deviationslist_abs_unique_otime_vs_ptime_front_edge.append(abs(otime_vs_ptime_deviation_front_edge))
             deviationslist_rel_unique_otime_vs_ptime_back_edge.append(otime_vs_ptime_deviation_back_edge)
+            deviationslist_abs_unique_otime_vs_ptime_front_edge.append(abs(otime_vs_ptime_deviation_front_edge))
             deviationslist_abs_unique_otime_vs_ptime_back_edge.append(abs(otime_vs_ptime_deviation_back_edge))
 
         # Always update "previous_..." variables, for the next frame to use,
@@ -584,6 +584,15 @@ def main(argv: List[str]) -> int:
     print(
         f"\nInput/game frame-to-frame frametime deviations (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
+    g_avg = statistics.mean(deviationslist_rel_present_back_edge)
+    g_med = statistics.median(deviationslist_rel_present_back_edge)
+    g_min = min(deviationslist_rel_present_back_edge)
+    g_max = max(deviationslist_rel_present_back_edge)
+    g_stddev = statistics.stdev(deviationslist_rel_present_back_edge)
+    g_sum = sum(deviationslist_rel_present_back_edge)
+    print(
+        f"Input/game frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
     g_avg = statistics.mean(deviationslist_abs_present_front_edge)
     g_med = statistics.median(deviationslist_abs_present_front_edge)
     g_min = min(deviationslist_abs_present_front_edge)
@@ -594,15 +603,6 @@ def main(argv: List[str]) -> int:
     g_dpm = g_sum / capture_duration_minutes
     print(
         f"Input/game frame-to-frame frametime deviations (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
-
-    g_avg = statistics.mean(deviationslist_rel_present_back_edge)
-    g_med = statistics.median(deviationslist_rel_present_back_edge)
-    g_min = min(deviationslist_rel_present_back_edge)
-    g_max = max(deviationslist_rel_present_back_edge)
-    g_stddev = statistics.stdev(deviationslist_rel_present_back_edge)
-    g_sum = sum(deviationslist_rel_present_back_edge)
-    print(
-        f"Input/game frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
     g_avg = statistics.mean(deviationslist_abs_present_back_edge)
     g_med = statistics.median(deviationslist_abs_present_back_edge)
@@ -650,6 +650,15 @@ def main(argv: List[str]) -> int:
     print(
         f"\nCaptured frame-to-frame frametime deviations (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
+    g_avg = statistics.mean(deviationslist_rel_captured_back_edge)
+    g_med = statistics.median(deviationslist_rel_captured_back_edge)
+    g_min = min(deviationslist_rel_captured_back_edge)
+    g_max = max(deviationslist_rel_captured_back_edge)
+    g_stddev = statistics.stdev(deviationslist_rel_captured_back_edge)
+    g_sum = sum(deviationslist_rel_captured_back_edge)
+    print(
+        f"Captured frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
     g_avg = statistics.mean(deviationslist_abs_captured_front_edge)
     g_med = statistics.median(deviationslist_abs_captured_front_edge)
     g_min = min(deviationslist_abs_captured_front_edge)
@@ -660,15 +669,6 @@ def main(argv: List[str]) -> int:
     g_dpm = g_sum / capture_duration_minutes
     print(
         f"Captured frame-to-frame frametime deviations (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
-
-    g_avg = statistics.mean(deviationslist_rel_captured_back_edge)
-    g_med = statistics.median(deviationslist_rel_captured_back_edge)
-    g_min = min(deviationslist_rel_captured_back_edge)
-    g_max = max(deviationslist_rel_captured_back_edge)
-    g_stddev = statistics.stdev(deviationslist_rel_captured_back_edge)
-    g_sum = sum(deviationslist_rel_captured_back_edge)
-    print(
-        f"Captured frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
     g_avg = statistics.mean(deviationslist_abs_captured_back_edge)
     g_med = statistics.median(deviationslist_abs_captured_back_edge)
@@ -716,6 +716,15 @@ def main(argv: List[str]) -> int:
     print(
         f"\nOutput/composited frame-to-frame frametime deviations (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
+    g_avg = statistics.mean(deviationslist_rel_output_back_edge)
+    g_med = statistics.median(deviationslist_rel_output_back_edge)
+    g_min = min(deviationslist_rel_output_back_edge)
+    g_max = max(deviationslist_rel_output_back_edge)
+    g_stddev = statistics.stdev(deviationslist_rel_output_back_edge)
+    g_sum = sum(deviationslist_rel_output_back_edge)
+    print(
+        f"Output/composited frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
     g_avg = statistics.mean(deviationslist_abs_output_front_edge)
     g_med = statistics.median(deviationslist_abs_output_front_edge)
     g_min = min(deviationslist_abs_output_front_edge)
@@ -726,15 +735,6 @@ def main(argv: List[str]) -> int:
     g_dpm = g_sum / capture_duration_minutes
     print(
         f"Output/composited frame-to-frame frametime deviations (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
-
-    g_avg = statistics.mean(deviationslist_rel_output_back_edge)
-    g_med = statistics.median(deviationslist_rel_output_back_edge)
-    g_min = min(deviationslist_rel_output_back_edge)
-    g_max = max(deviationslist_rel_output_back_edge)
-    g_stddev = statistics.stdev(deviationslist_rel_output_back_edge)
-    g_sum = sum(deviationslist_rel_output_back_edge)
-    print(
-        f"Output/composited frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
     g_avg = statistics.mean(deviationslist_abs_output_back_edge)
     g_med = statistics.median(deviationslist_abs_output_back_edge)
@@ -780,17 +780,6 @@ def main(argv: List[str]) -> int:
     print(
         f"Output/composited time offset (otime vs ptime) frame-to-frame deviation (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
-    g_avg = statistics.mean(deviationslist_abs_otime_vs_ptime_front_edge)
-    g_med = statistics.median(deviationslist_abs_otime_vs_ptime_front_edge)
-    g_min = min(deviationslist_abs_otime_vs_ptime_front_edge)
-    g_max = max(deviationslist_abs_otime_vs_ptime_front_edge)
-    g_stddev = statistics.stdev(deviationslist_abs_otime_vs_ptime_front_edge)
-    g_sum = sum(deviationslist_abs_otime_vs_ptime_front_edge)
-    g_dps = g_sum / capture_duration_seconds
-    g_dpm = g_sum / capture_duration_minutes
-    print(
-        f"Output/composited time offset (otime vs ptime) frame-to-frame deviation (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
-
     g_avg = statistics.mean(deviationslist_rel_otime_vs_ptime_back_edge)
     g_med = statistics.median(deviationslist_rel_otime_vs_ptime_back_edge)
     g_min = min(deviationslist_rel_otime_vs_ptime_back_edge)
@@ -801,6 +790,17 @@ def main(argv: List[str]) -> int:
     g_dpm = g_sum / capture_duration_minutes
     print(
         f"Output/composited time offset (otime vs ptime) frame-to-frame deviation (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
+    g_avg = statistics.mean(deviationslist_abs_otime_vs_ptime_front_edge)
+    g_med = statistics.median(deviationslist_abs_otime_vs_ptime_front_edge)
+    g_min = min(deviationslist_abs_otime_vs_ptime_front_edge)
+    g_max = max(deviationslist_abs_otime_vs_ptime_front_edge)
+    g_stddev = statistics.stdev(deviationslist_abs_otime_vs_ptime_front_edge)
+    g_sum = sum(deviationslist_abs_otime_vs_ptime_front_edge)
+    g_dps = g_sum / capture_duration_seconds
+    g_dpm = g_sum / capture_duration_minutes
+    print(
+        f"Output/composited time offset (otime vs ptime) frame-to-frame deviation (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
 
     g_avg = statistics.mean(deviationslist_abs_otime_vs_ptime_back_edge)
     g_med = statistics.median(deviationslist_abs_otime_vs_ptime_back_edge)
@@ -864,6 +864,15 @@ def main(argv: List[str]) -> int:
     print(
         f"\nUnique Output/composited frame-to-frame frametime deviations (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
+    g_avg = statistics.mean(deviationslist_rel_unique_output_back_edge)
+    g_med = statistics.median(deviationslist_rel_unique_output_back_edge)
+    g_min = min(deviationslist_rel_unique_output_back_edge)
+    g_max = max(deviationslist_rel_unique_output_back_edge)
+    g_stddev = statistics.stdev(deviationslist_rel_unique_output_back_edge)
+    g_sum = sum(deviationslist_rel_unique_output_back_edge)
+    print(
+        f"Unique Output/composited frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
     g_avg = statistics.mean(deviationslist_abs_unique_output_front_edge)
     g_med = statistics.median(deviationslist_abs_unique_output_front_edge)
     g_min = min(deviationslist_abs_unique_output_front_edge)
@@ -874,15 +883,6 @@ def main(argv: List[str]) -> int:
     g_dpm = g_sum / capture_duration_minutes
     print(
         f"Unique Output/composited frame-to-frame frametime deviations (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
-
-    g_avg = statistics.mean(deviationslist_rel_unique_output_back_edge)
-    g_med = statistics.median(deviationslist_rel_unique_output_back_edge)
-    g_min = min(deviationslist_rel_unique_output_back_edge)
-    g_max = max(deviationslist_rel_unique_output_back_edge)
-    g_stddev = statistics.stdev(deviationslist_rel_unique_output_back_edge)
-    g_sum = sum(deviationslist_rel_unique_output_back_edge)
-    print(
-        f"Unique Output/composited frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
     g_avg = statistics.mean(deviationslist_abs_unique_output_back_edge)
     g_med = statistics.median(deviationslist_abs_unique_output_back_edge)
@@ -928,17 +928,6 @@ def main(argv: List[str]) -> int:
     print(
         f"Unique Output/composited time offset (otime vs ptime) frame-to-frame deviation (relative) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
-    g_avg = statistics.mean(deviationslist_abs_unique_otime_vs_ptime_front_edge)
-    g_med = statistics.median(deviationslist_abs_unique_otime_vs_ptime_front_edge)
-    g_min = min(deviationslist_abs_unique_otime_vs_ptime_front_edge)
-    g_max = max(deviationslist_abs_unique_otime_vs_ptime_front_edge)
-    g_stddev = statistics.stdev(deviationslist_abs_unique_otime_vs_ptime_front_edge)
-    g_sum = sum(deviationslist_abs_unique_otime_vs_ptime_front_edge)
-    g_dps = g_sum / capture_duration_seconds
-    g_dpm = g_sum / capture_duration_minutes
-    print(
-        f"Unique Output/composited time offset (otime vs ptime) frame-to-frame deviation (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
-
     g_avg = statistics.mean(deviationslist_rel_unique_otime_vs_ptime_back_edge)
     g_med = statistics.median(deviationslist_rel_unique_otime_vs_ptime_back_edge)
     g_min = min(deviationslist_rel_unique_otime_vs_ptime_back_edge)
@@ -949,6 +938,17 @@ def main(argv: List[str]) -> int:
     g_dpm = g_sum / capture_duration_minutes
     print(
         f"Unique Output/composited time offset (otime vs ptime) frame-to-frame deviation (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
+    g_avg = statistics.mean(deviationslist_abs_unique_otime_vs_ptime_front_edge)
+    g_med = statistics.median(deviationslist_abs_unique_otime_vs_ptime_front_edge)
+    g_min = min(deviationslist_abs_unique_otime_vs_ptime_front_edge)
+    g_max = max(deviationslist_abs_unique_otime_vs_ptime_front_edge)
+    g_stddev = statistics.stdev(deviationslist_abs_unique_otime_vs_ptime_front_edge)
+    g_sum = sum(deviationslist_abs_unique_otime_vs_ptime_front_edge)
+    g_dps = g_sum / capture_duration_seconds
+    g_dpm = g_sum / capture_duration_minutes
+    print(
+        f"Unique Output/composited time offset (otime vs ptime) frame-to-frame deviation (absolute) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
 
     g_avg = statistics.mean(deviationslist_abs_unique_otime_vs_ptime_back_edge)
     g_med = statistics.median(deviationslist_abs_unique_otime_vs_ptime_back_edge)
