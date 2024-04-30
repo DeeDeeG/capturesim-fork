@@ -752,22 +752,16 @@ def main(argv: List[str]) -> int:
     g_min = min(offsetslist_otime_vs_ptime_front_edge)
     g_max = max(offsetslist_otime_vs_ptime_front_edge)
     g_stddev = statistics.stdev(offsetslist_otime_vs_ptime_front_edge)
-    g_sum = sum(offsetslist_otime_vs_ptime_front_edge)
-    g_dps = g_sum / capture_duration_seconds
-    g_dpm = g_sum / capture_duration_minutes
     print(
-        f"Output/composited time offsets (otime vs ptime) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
+        f"Output/composited time offsets (otime vs ptime) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
     g_avg = statistics.mean(offsetslist_otime_vs_ptime_back_edge)
     g_med = statistics.median(offsetslist_otime_vs_ptime_back_edge)
     g_min = min(offsetslist_otime_vs_ptime_back_edge)
     g_max = max(offsetslist_otime_vs_ptime_back_edge)
     g_stddev = statistics.stdev(offsetslist_otime_vs_ptime_back_edge)
-    g_sum = sum(offsetslist_otime_vs_ptime_back_edge)
-    g_dps = g_sum / capture_duration_seconds
-    g_dpm = g_sum / capture_duration_minutes
     print(
-        f"Output/composited time offsets (otime vs ptime) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
+        f"Output/composited time offsets (otime vs ptime) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
     g_avg = statistics.mean(deviationslist_rel_otime_vs_ptime_front_edge)
     g_med = statistics.median(deviationslist_rel_otime_vs_ptime_front_edge)
@@ -900,22 +894,16 @@ def main(argv: List[str]) -> int:
     g_min = min(offsetslist_unique_otime_vs_ptime_front_edge)
     g_max = max(offsetslist_unique_otime_vs_ptime_front_edge)
     g_stddev = statistics.stdev(offsetslist_unique_otime_vs_ptime_front_edge)
-    g_sum = sum(offsetslist_unique_otime_vs_ptime_front_edge)
-    g_dps = g_sum / capture_duration_seconds
-    g_dpm = g_sum / capture_duration_minutes
     print(
-        f"Unique Output/composited time offsets (otime vs ptime) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
+        f"Unique Output/composited time offsets (otime vs ptime) (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
     g_avg = statistics.mean(offsetslist_unique_otime_vs_ptime_back_edge)
     g_med = statistics.median(offsetslist_unique_otime_vs_ptime_back_edge)
     g_min = min(offsetslist_unique_otime_vs_ptime_back_edge)
     g_max = max(offsetslist_unique_otime_vs_ptime_back_edge)
     g_stddev = statistics.stdev(offsetslist_unique_otime_vs_ptime_back_edge)
-    g_sum = sum(offsetslist_unique_otime_vs_ptime_back_edge)
-    g_dps = g_sum / capture_duration_seconds
-    g_dpm = g_sum / capture_duration_minutes
     print(
-        f"Unique Output/composited time offsets (otime vs ptime) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
+        f"Unique Output/composited time offsets (otime vs ptime) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
     g_avg = statistics.mean(deviationslist_rel_unique_otime_vs_ptime_front_edge)
     g_med = statistics.median(deviationslist_rel_unique_otime_vs_ptime_front_edge)
