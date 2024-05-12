@@ -291,18 +291,14 @@ def main(argv: List[str]) -> int:
     deviationslist_abs_present_back_edge = []
     for frame in presented_framelist:
         front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
-        prev_front_edge_present_time = frame.present_t_ms
+        gaplist_present_front_edge_times.append(front_edge_time_gap)
+        back_edge_time_gap = None
 
-        if prev_back_edge_present_time is None:
-            back_edge_time_gap = None
-        else:
+        if prev_back_edge_present_time is not None:
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
-        prev_back_edge_present_time = frame.back_edge_present_t_ms
+            gaplist_present_back_edge_times.append(back_edge_time_gap)
 
-        if prev_back_edge_time_gap is None:
-            front_edge_deviation = None
-            back_edge_deviation = None
-        else:
+        if prev_back_edge_time_gap is not None:
             front_edge_deviation = front_edge_time_gap - prev_front_edge_time_gap
             back_edge_deviation = back_edge_time_gap - prev_back_edge_time_gap
             deviationslist_rel_present_front_edge.append(front_edge_deviation)
@@ -310,9 +306,8 @@ def main(argv: List[str]) -> int:
             deviationslist_abs_present_front_edge.append(abs(front_edge_deviation))
             deviationslist_abs_present_back_edge.append(abs(back_edge_deviation))
 
-        gaplist_present_front_edge_times.append(front_edge_time_gap)
-        gaplist_present_back_edge_times.append(back_edge_time_gap)
-
+        prev_front_edge_present_time = frame.present_t_ms
+        prev_back_edge_present_time = frame.back_edge_present_t_ms
         prev_front_edge_time_gap = front_edge_time_gap
         prev_back_edge_time_gap = back_edge_time_gap
 
@@ -372,23 +367,37 @@ def main(argv: List[str]) -> int:
     prev_capture_frame = None
     prev_front_edge_present_time = None
     prev_back_edge_present_time = None
+    prev_composite_time = None
     prev_front_edge_time_gap = None
     prev_back_edge_time_gap = None
+    prev_composite_time_gap = None
     prev_otime_vs_ptime_offset_front_edge = None
     prev_otime_vs_ptime_offset_back_edge = None
     gaplist_output_frames = []
+    gaplist_output_frame_cframes = []
     gaplist_output_front_edge_times = []
     gaplist_output_back_edge_times = []
     deviationslist_rel_output_front_edge = []
     deviationslist_rel_output_back_edge = []
+    deviationslist_rel_output_otime = []
     deviationslist_abs_output_front_edge = []
     deviationslist_abs_output_back_edge = []
+    deviationslist_abs_output_otime = []
     offsetslist_otime_vs_ptime_front_edge = []
     offsetslist_otime_vs_ptime_back_edge = []
     deviationslist_rel_otime_vs_ptime_front_edge = []
     deviationslist_rel_otime_vs_ptime_back_edge = []
     deviationslist_abs_otime_vs_ptime_front_edge = []
     deviationslist_abs_otime_vs_ptime_back_edge = []
+
+    frame_gap = None
+    capture_frame_gap = None
+    composite_frame_gap = None
+    front_edge_time_gap = None
+    back_edge_time_gap = None
+    composite_time_gap = None
+    otime_vs_ptime_offset_front_edge = None
+    otime_vs_ptime_offset_back_edge = None
 
     for frame in obs.composited_framelist:
         if frame.capture_t_ms is None:
@@ -405,9 +414,12 @@ def main(argv: List[str]) -> int:
             frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap N/A{dupstr}")
         else:
             frame_gap = frame.present_frame - prev_present_frame
+            capture_frame_gap = frame.capture_frame - prev_capture_frame
             front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
+            composite_time_gap = frame.composite_t_ms - prev_composite_time
             gaplist_output_frames.append(frame_gap)
+            gaplist_output_frame_cframes.append(capture_frame_gap)
             gaplist_output_front_edge_times.append(front_edge_time_gap)
             gaplist_output_back_edge_times.append(back_edge_time_gap)
 
@@ -423,13 +435,17 @@ def main(argv: List[str]) -> int:
         if prev_back_edge_time_gap is None:
             front_edge_deviation = None
             back_edge_deviation = None
+            composite_time_deviation = None
         else:
             front_edge_deviation = front_edge_time_gap - prev_front_edge_time_gap
             back_edge_deviation = back_edge_time_gap - prev_back_edge_time_gap
+            composite_time_deviation = composite_time_gap - prev_composite_time_gap
             deviationslist_rel_output_front_edge.append(front_edge_deviation)
             deviationslist_rel_output_back_edge.append(back_edge_deviation)
+            deviationslist_rel_output_otime.append(composite_time_deviation)
             deviationslist_abs_output_front_edge.append(abs(front_edge_deviation))
             deviationslist_abs_output_back_edge.append(abs(back_edge_deviation))
+            deviationslist_abs_output_otime.append(abs(composite_time_deviation))
 
             otime_vs_ptime_deviation_front_edge = otime_vs_ptime_offset_front_edge - prev_otime_vs_ptime_offset_front_edge
             otime_vs_ptime_deviation_back_edge = otime_vs_ptime_offset_back_edge - prev_otime_vs_ptime_offset_back_edge
@@ -444,8 +460,10 @@ def main(argv: List[str]) -> int:
         prev_capture_frame = frame.capture_frame
         prev_front_edge_present_time = frame.present_t_ms
         prev_back_edge_present_time = frame.back_edge_present_t_ms
+        prev_composite_time = frame.composite_t_ms
         prev_front_edge_time_gap = front_edge_time_gap
         prev_back_edge_time_gap = back_edge_time_gap
+        prev_composite_time_gap = composite_time_gap
         prev_otime_vs_ptime_offset_front_edge = otime_vs_ptime_offset_front_edge
         prev_otime_vs_ptime_offset_back_edge = otime_vs_ptime_offset_back_edge
 
@@ -453,28 +471,41 @@ def main(argv: List[str]) -> int:
     prev_present_frame = None
     prev_capture_frame = None
     prev_composite_frame = None
-    prev_composite_time = None
     prev_front_edge_present_time = None
     prev_back_edge_present_time = None
+    prev_composite_time = None
     prev_front_edge_time_gap = None
     prev_back_edge_time_gap = None
+    prev_composite_time_gap = None
     prev_otime_vs_ptime_offset_front_edge = None
     prev_otime_vs_ptime_offset_back_edge = None
     gaplist_unique_output_frames = []
+    gaplist_unique_output_frame_cframes = []
     gaplist_unique_output_frame_oframes = []
     gaplist_unique_output_composite_times = []
     gaplist_unique_output_front_edge_times = []
     gaplist_unique_output_back_edge_times = []
     deviationslist_rel_unique_output_front_edge = []
     deviationslist_rel_unique_output_back_edge = []
+    deviationslist_rel_unique_output_otime = []
     deviationslist_abs_unique_output_front_edge = []
     deviationslist_abs_unique_output_back_edge = []
+    deviationslist_abs_unique_output_otime = []
     offsetslist_unique_otime_vs_ptime_front_edge = []
     offsetslist_unique_otime_vs_ptime_back_edge = []
     deviationslist_rel_unique_otime_vs_ptime_front_edge = []
     deviationslist_rel_unique_otime_vs_ptime_back_edge = []
     deviationslist_abs_unique_otime_vs_ptime_front_edge = []
     deviationslist_abs_unique_otime_vs_ptime_back_edge = []
+
+    frame_gap = None
+    capture_frame_gap = None
+    composite_frame_gap = None
+    front_edge_time_gap = None
+    back_edge_time_gap = None
+    composite_time_gap = None
+    otime_vs_ptime_offset_front_edge = None
+    otime_vs_ptime_offset_back_edge = None
 
     for frame in obs.unique_composited_framelist:
         if frame.capture_t_ms is None:
@@ -491,11 +522,13 @@ def main(argv: List[str]) -> int:
             frame_detail_print(f"oframe {frame.composite_frame} @ {frame.composite_t_ms:0.3f}ms, cframe {frame.capture_frame}, pframe {frame.present_frame} @ {frame.present_t_ms:0.3f}ms, gap N/A{dupstr}")
         else:
             frame_gap = frame.present_frame - prev_present_frame
+            capture_frame_gap = frame.capture_frame - prev_capture_frame
             composite_frame_gap = frame.composite_frame - prev_composite_frame
-            composite_time_gap = frame.composite_t_ms - prev_composite_time
             front_edge_time_gap = frame.present_t_ms - prev_front_edge_present_time
             back_edge_time_gap = frame.back_edge_present_t_ms - prev_back_edge_present_time
+            composite_time_gap = frame.composite_t_ms - prev_composite_time
             gaplist_unique_output_frames.append(frame_gap)
+            gaplist_unique_output_frame_cframes.append(capture_frame_gap)
             gaplist_unique_output_frame_oframes.append(composite_frame_gap)
             gaplist_unique_output_composite_times.append(composite_time_gap)
             gaplist_unique_output_front_edge_times.append(front_edge_time_gap)
@@ -513,13 +546,17 @@ def main(argv: List[str]) -> int:
         if prev_back_edge_time_gap is None:
             front_edge_deviation = None
             back_edge_deviation = None
+            composite_time_deviation = None
         else:
             front_edge_deviation = front_edge_time_gap - prev_front_edge_time_gap
             back_edge_deviation = back_edge_time_gap - prev_back_edge_time_gap
+            composite_time_deviation = composite_time_gap - prev_composite_time_gap
             deviationslist_rel_unique_output_front_edge.append(front_edge_deviation)
             deviationslist_rel_unique_output_back_edge.append(back_edge_deviation)
+            deviationslist_rel_unique_output_otime.append(composite_time_deviation)
             deviationslist_abs_unique_output_front_edge.append(abs(front_edge_deviation))
             deviationslist_abs_unique_output_back_edge.append(abs(back_edge_deviation))
+            deviationslist_abs_unique_output_otime.append(abs(composite_time_deviation))
 
             otime_vs_ptime_deviation_front_edge = otime_vs_ptime_offset_front_edge - prev_otime_vs_ptime_offset_front_edge
             otime_vs_ptime_deviation_back_edge = otime_vs_ptime_offset_back_edge - prev_otime_vs_ptime_offset_back_edge
@@ -538,6 +575,7 @@ def main(argv: List[str]) -> int:
         prev_back_edge_present_time = frame.back_edge_present_t_ms
         prev_front_edge_time_gap = front_edge_time_gap
         prev_back_edge_time_gap = back_edge_time_gap
+        prev_composite_time_gap = composite_time_gap
         prev_otime_vs_ptime_offset_front_edge = otime_vs_ptime_offset_front_edge
         prev_otime_vs_ptime_offset_back_edge = otime_vs_ptime_offset_back_edge
 
@@ -566,11 +604,11 @@ def main(argv: List[str]) -> int:
     print(
         f"Input/game frame time gaps (front edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
-    g_avg = statistics.mean(gaplist_present_back_edge_times[1:])
-    g_med = statistics.median(gaplist_present_back_edge_times[1:])
-    g_min = min(gaplist_present_back_edge_times[1:])
-    g_max = max(gaplist_present_back_edge_times[1:])
-    g_stddev = statistics.stdev(gaplist_present_back_edge_times[1:])
+    g_avg = statistics.mean(gaplist_present_back_edge_times)
+    g_med = statistics.median(gaplist_present_back_edge_times)
+    g_min = min(gaplist_present_back_edge_times)
+    g_max = max(gaplist_present_back_edge_times)
+    g_stddev = statistics.stdev(gaplist_present_back_edge_times)
     print(
         f"Input/game frame time gaps (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
@@ -688,7 +726,15 @@ def main(argv: List[str]) -> int:
     g_max = max(gaplist_output_frames)
     g_stddev = statistics.stdev(gaplist_output_frames)
     print(
-        f"\nOutput/composited frame number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+        f"\nOutput/composited pframe number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+
+    g_avg = statistics.mean(gaplist_output_frame_cframes)
+    g_med = statistics.median(gaplist_output_frame_cframes)
+    g_min = min(gaplist_output_frame_cframes)
+    g_max = max(gaplist_output_frame_cframes)
+    g_stddev = statistics.stdev(gaplist_output_frame_cframes)
+    print(
+        f"Output/composited cframe number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
 
     g_avg = statistics.mean(gaplist_output_front_edge_times)
     g_med = statistics.median(gaplist_output_front_edge_times)
@@ -816,6 +862,14 @@ def main(argv: List[str]) -> int:
     print(
         f"\nUnique Output/composited frame pframe number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
 
+    g_avg = statistics.mean(gaplist_unique_output_frame_cframes)
+    g_med = statistics.median(gaplist_unique_output_frame_cframes)
+    g_min = min(gaplist_unique_output_frame_cframes)
+    g_max = max(gaplist_unique_output_frame_cframes)
+    g_stddev = statistics.stdev(gaplist_unique_output_frame_cframes)
+    print(
+        f"Unique Output/composited frame cframe number gaps: {g_avg:0.2f} avg, {g_med:0.2f} med, {g_min} min, {g_max} max, {g_stddev:0.2f} stddev")
+
     g_avg = statistics.mean(gaplist_unique_output_frame_oframes)
     g_med = statistics.median(gaplist_unique_output_frame_oframes)
     g_min = min(gaplist_unique_output_frame_oframes)
@@ -846,7 +900,7 @@ def main(argv: List[str]) -> int:
     g_max = max(gaplist_unique_output_composite_times)
     g_stddev = statistics.stdev(gaplist_unique_output_composite_times)
     print(
-        f"Unique Output/composited frame time gaps (otime): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
+        f"Unique Output/composited frame time gaps (otimes): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev")
 
 
     g_avg = statistics.mean(deviationslist_rel_unique_output_front_edge)
@@ -866,6 +920,15 @@ def main(argv: List[str]) -> int:
     g_sum = sum(deviationslist_rel_unique_output_back_edge)
     print(
         f"Unique Output/composited frame-to-frame frametime deviations (relative) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
+
+    g_avg = statistics.mean(deviationslist_rel_unique_output_otime)
+    g_med = statistics.median(deviationslist_rel_unique_output_otime)
+    g_min = min(deviationslist_rel_unique_output_otime)
+    g_max = max(deviationslist_rel_unique_output_otime)
+    g_stddev = statistics.stdev(deviationslist_rel_unique_output_otime)
+    g_sum = sum(deviationslist_rel_unique_output_otime)
+    print(
+        f"Unique Output/composited otime deviations (relative): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum")
 
     g_avg = statistics.mean(deviationslist_abs_unique_output_front_edge)
     g_med = statistics.median(deviationslist_abs_unique_output_front_edge)
@@ -888,6 +951,17 @@ def main(argv: List[str]) -> int:
     g_dpm = g_sum / capture_duration_minutes
     print(
         f"Unique Output/composited frame-to-frame frametime deviations (absolute) (back edge): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
+
+    g_avg = statistics.mean(deviationslist_abs_unique_output_otime)
+    g_med = statistics.median(deviationslist_abs_unique_output_otime)
+    g_min = min(deviationslist_abs_unique_output_otime)
+    g_max = max(deviationslist_abs_unique_output_otime)
+    g_stddev = statistics.stdev(deviationslist_abs_unique_output_otime)
+    g_sum = sum(deviationslist_abs_unique_output_otime)
+    g_dps = g_sum / capture_duration_seconds
+    g_dpm = g_sum / capture_duration_minutes
+    print(
+        f"Unique Output/composited otime deviations (absolute): {g_avg:0.3f} avg, {g_med:0.3f} med, {g_min:0.3f} min, {g_max:0.3f} max, {g_stddev:0.3f} stddev, {g_sum:0.3f} sum, {g_dps:0.3f} deviation/sec, {g_dpm:0.3f} deviation/min")
 
     g_avg = statistics.mean(offsetslist_unique_otime_vs_ptime_front_edge)
     g_med = statistics.median(offsetslist_unique_otime_vs_ptime_front_edge)
