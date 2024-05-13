@@ -79,40 +79,44 @@ class FrameStream:
 # than returning an updated one. This may or may not be the right interface
 class GameCapture:
     last_capture_framenum: int = -1
-    last_capture_frame: int = -1
-    last_capture_ms: float = 0.0  # last frame captured
-    game_time_ms: float = 0.0  # current game timestamp (last frame seen)
     capture_interval_ms: float
+    target_time: float = 0.0
+    captured_last_time: bool = True
+    remaining_target_frames_to_cap_this_interval: int = 1
 
     def __init__(self, interval: float) -> None:
         self.capture_interval_ms = interval
 
     def capture(self, frame: GameFrame) -> bool:
-        elapsed = frame.present_t_ms - self.last_capture_ms
-
         # Time to capture?
-        if elapsed < self.capture_interval_ms:
+        if frame.present_t_ms < self.target_time and self.remaining_target_frames_to_cap_this_interval <= 0:
             frame.disposition = Disp.IGNORED
             return False
 
+        # If frame present time is past target_time, the previous capture interval is over.
+        # Bring target_time forward and reset to start a new capture interval.
+        loop_iterations = 0
+        while frame.present_t_ms > self.target_time:
+            self.target_time += self.capture_interval_ms
+            loop_iterations += 1
+
+        if loop_iterations > 1:
+            captured_last_time = False
+
+        # Allow capping two frames this interval if we did not capture in the previous (skipped) interval.
+        # Prevents rubber-banding, where one late game frame means not just one empty interval,
+        # but also ruining the next interval’s chances for returning to timeliness of cadence overall.
+        # Still limits the aggregate capture rate, for whatever performance goals that may or may achieve
+        # (depends on the system how heavy capturing game frames is?).
+        self.remaining_target_frames_to_cap_this_interval = 1 if self.captured_last_time is True else 2
+
         # Time to capture!
-        self.last_capture_frame = frame.present_frame
         frame.disposition = Disp.CAPTURED
         frame.capture_t_ms = frame.present_t_ms
         frame.capture_frame = self.last_capture_framenum + 1
         self.last_capture_framenum += 1
-
-        # set the last capture time so we know when to capture next
-        #
-        # if the time elapsed has been really long, go from now.
-        if elapsed > self.capture_interval_ms * 2:
-            self.last_capture_ms = frame.present_t_ms
-            return True
-
-        # else we're on a normal cadance, backdate the last capture
-        # time to make it an even multiple of half the OBS render
-        # interval
-        self.last_capture_ms += self.capture_interval_ms
+        self.captured_last_time = True
+        self.remaining_target_frames_to_cap_this_interval -= 1
         return True
 
 
