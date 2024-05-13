@@ -96,7 +96,7 @@ class GameCapture:
         # If frame present time is past target_time, the previous capture interval is over.
         # Bring target_time forward and reset to start a new capture interval.
         loop_iterations = 0
-        while frame.present_t_ms > self.target_time:
+        while frame.present_t_ms > self.target_time and self.capture_interval_ms > 0.0:
             self.target_time += self.capture_interval_ms
             loop_iterations += 1
 
